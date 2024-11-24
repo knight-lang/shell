@@ -1,3 +1,403 @@
-#!/bin/sh
+#!/bin/dash
+
+# printf 'foo\nbar\n' | sed -n '
+# 1{x;D;}
+# 2{l;q;}
+# H
+# ${
+# x
+# s/\n/_/g
+# p
+# }
+# #q
+# #1t
+# #;H;x;i\
+# #===
+# #l;i\
+# #---
+# #x; ${x; s/\n/_/g; l; q;}
+# '
+
+# exit
+
+################################################################################
+#                                    Setup                                     #
+################################################################################
+
+## Set options
+set -o nounset
+set -o noglob
+
+scriptname=${0##*/}
+
+## Print out a message and exit the program
+die () {
+	fmt=$1
+	shift
+	printf "%s: $fmt\\n" "$scriptname" "$@"
+	exit 1
+}
+
+TODO () { die "TODO: $*"; }
+################################################################################
+#                                 Conversions                                  #
+################################################################################
+
+## Converts its argument to a string, storing the result in $REPLY
+to_str () case $1 in
+	[si]*) REPLY=${1#?} ;;
+	T)     REPLY=true ;;
+	F)     REPLY=false ;;
+	N)     REPLY= ;;
+	a*)    TODO to_str for array ;; # "ary_join $'\n' $1 ;; # `ary_join` sets result
+	*) die "unknown type for to_str: $1" ;;
+esac
+
+## Converts its argument to an integer, storing the result in $REPLY
+to_int () case $1 in
+	s*) case ${1%s} in
+		-*[!0-9]*) TODO ;;
+		[!-]*[!0-9]*) TODO ;;
+		*) REPLY=i${1%s} ;; # TODO: there's no way this works
+		esac ;;
+	[FN]) REPLY=0 ;;
+	T)    REPLY=1 ;;
+	i*)   REPLY=${1#i} ;;
+	a*)   TODO to_int for array ;; #REPLY=$arrays[$1] ;;
+	*) die "unknown type for $0: $1" ;;
+esac
+
+## Returns 0 if its argument is truthy
+to_bool () case $1 in a*) TODO;; [sFN]|[ia]0) false; esac
+
+## Converts its argument to an array, storing the result in $reply
+# to_ary () case $1 in
+# 	[sFN]) reply=() ;; # Note that we handle the empty string case here
+# 	T)     reply=(T) ;;
+# 	s*)    reply=(s${(s::)^1#s}) ;;
+# 	i*)    reply=(i${${1#i}%%<->}${(s::)^1##i(-|)}) ;; # Oh boy! lol
+# 	a*) reply=()
+# 		while (( $#reply < arrays[$1] )) do
+# 			reply+=$arrays[$1:$#reply]
+# 		done ;;
+# 	*) die "unknown type for $0: $1" ;;
+# esac
+
+################################################################################
+#                                  Utilities                                   #
+################################################################################
+
+## Sets `REPLY` to `T` or `F` based on the exit status of the last command.
+newbool () if [ $? -ne 0 ]; then REPLY=F; else REPLY=T; fi
+
+## Dumps its argument to stdout.
+dump () case $1 in
+	T) printf true ;;
+	F) printf false ;;
+	N) printf null ;;
+	i) printf ${1%i} ;;
+		# Define a label @ the start
+		# Get the next line and append it to the pattern space
+	s*) printf %sx "$1" | sed '
+:s
+$!N;$!bs
+s/\\/\\\\/g;s/\t/\\t/g;s/\r/\\r/g;s/"/\\"/g;s/\n/\\n/g
+s/x$//' ;;
+	a*) TODO ;;
+esac
+
+## Returns whether its arguments are equal, ie knight's `?` function
+are_equal () {
+	# If they're identical, then they're equal.
+	[ "$1" = "$2" ] && return
+
+	# If either element isn't an array, then they're not equal; arrays are the
+	# only type which require more than a simple `=` comparison
+	if [ "${1#a}" != "$1" ] || [ "${2#a}" != "$2" ]; then
+		return 1
+	fi
+
+	# If the arrays lengths aren't the same, they're not equal.
+	TODO
+	# (( arrays[$1] != arrays[$2] )) && return 1
+
+	# # If any element of either array isn't the same, they're not equal.
+	# local i
+	# for (( i = 0; i < arrays[$1]; i++ )) do
+	# 	are_equal $arrays[$1:$i] $arrays[$2:$i] || return 1
+	# done
+
+	# # The arrays were equal!
+	# return 0
+}
 
 exit
+
+## Sets $REPLY to `-1`, `0`, or `1` depending on whether the first argument is
+# smaller than, equal to or greater than the second argument.
+compare () case $1 in
+	s*) to_str $2;
+		if [[ ${1#s} < $REPLY ]]; then
+			REPLY=-1
+		else
+			[[ ${1#s} == $REPLY ]]
+			REPLY=$? # Abuse the return value of the `[[` comparison
+		fi ;;
+	T) to_bool $2; REPLY=$?;;
+	F) to_bool $2; REPLY=$(( -!? ));; # The `?` here is actually `$?`
+	i*) to_int $2; REPLY=$(( cmp(${1#i},REPLY) )) ;;
+	a*) to_ary $2
+		local -a rep=($reply) # can't use `$reply` in case we're recursive
+		local i min=$(( min(arrays[$1], $#rep) ))
+		for (( i = 0; i < min; i++ )) do
+			compare $arrays[$1:$i] $rep[i+1]
+			(( REPLY )) && return # return when `$REPLY` is nonzero, ie not equal.
+		done
+		REPLY=$(( cmp(arrays[$1], $#rep) )) ;;
+	*) die "unknown type for $0: $1" ;;
+esac
+
+################################################################################
+#                                   Parsing                                    #
+################################################################################
+
+## An associative array of all the arities. 
+readonly -A arities=(
+	P 0 R 0
+	\$ 1 O 1 E 1 B 1 C 1 Q 1 \! 1 L 1 D 1 , 1 A 1 \[ 1 \] 1 \~ 1
+	- 2 + 2 \* 2 / 2 % 2 \^ 2 \? 2 \< 2 \> 2 \& 2 \| 2 \; 2 \= 2 W 2
+	G 3 I 3
+	S 4
+)
+
+typeset -g LINE 
+function next_token {
+	# Strip leading whitespace and comments
+	LINE=${LINE##(\#[^$'\n']#|[:(){}[:space:]]#)#}
+
+	# Return early if the line is empty
+	[[ -z $LINE ]] && return 1
+
+	# Parse the token
+	typeset -g match mbegin mend # Used for pattern matching
+	case $LINE in
+		(@*) REPLY=a0 LINE=${LINE:1}; return 0 ;;
+		((#b)(<->)*)                     REPLY=i$match[1] ;;
+		((#b)([a-z_0-9]##)*)             REPLY=v$match[1] ;;
+		((#b)(\"[^\"]#\"|\'[^\']#\')*)   REPLY=s${${match#?}%?} ;;
+		((#b)([FTN][_A-Z]#)*) REPLY=${LINE:0:1} ;;
+		((#b)([A-Z_]##|[\+\-\$\+\*\/\%\^\<\>\?\&\|\!\;\=\~\,\[\]])*)
+			REPLY=f${LINE:0:1} ;;
+		(*) die "unknown token start: ${(q)LINE:0:1}" ;;
+	esac
+
+	# Replace the line; the return value is also 0
+	LINE=${LINE:$mend[1]}
+}
+
+## The global array of all ASTs; ASTS "objects" (eg what `BLOCK` returns) are
+# actually just indexes into this array, with an `A` stapled to the front.
+typeset -ga asts
+
+## The separator that's used to delimit separate fields in ASTs. This character
+# isn't a part of the Knight character set, so it's safe to use
+readonly AST_FIELD_SEP=$'\0'
+
+## Gets the next AST, either a literal or a function, and put it in $REPLY
+function next_ast {
+	# Parse out the token, or return if there's an error
+	next_token || return
+
+	# If we're not a function name, return early.
+	[[ $REPLY != f* ]] && return
+
+	# Setup local variables; `arity`` needs to be on another line because it
+	# relies on `ast` from the line before.
+	local ast=${REPLY#f}
+	local arity=$arities[$ast]
+
+	# Parse out the arguments
+	while (( arity-- )) do
+		next_ast || die "missing argument $((arities[${ast:0:1}] - arity))" \
+		                "for function ${(qq)ast:0:1}"
+		ast+=$AST_FIELD_SEP$REPLY
+	done
+
+	# Add the AST to the list
+	asts+=($ast)
+
+	# Set `$REPLY` to the current AST.
+	REPLY=A$#asts
+}
+
+################################################################################
+#                                  Execution                                   #
+################################################################################
+
+## Evaluates the first arg as a knight program, putting the result in $REPLY.
+function eval_kn {
+	LINE=$1
+	next_ast || die 'no program given'
+	run $REPLY
+}
+
+## The list of variables that exist.
+typeset -gA variables
+
+## Executes a value, and put its result in $REPLY
+function run {
+	# Handle variables and non-ASTs
+	if [[ $1 = v* ]]; then
+		REPLY=$variables[$1]
+		[[ -n $REPLY ]] || die "unknown variable ${1#v}"
+		return
+	elif [[ $1 != A* ]]; then
+		REPLY=$1
+		return
+	fi
+
+	# There's probably a better way to do this that doesn't use IFS
+	IFS=$AST_FIELD_SEP
+	set -- ${=asts[${1#A}]#f}
+	unset IFS
+
+	# The function is always the first argument
+	local fn=$1
+	shift
+
+	## Execute functions which don't automatically execute their args.
+	case $fn in
+		B)  REPLY=$1; return;;
+		=)  run $2; variables[$1]=$REPLY; return;;
+		\&) run $1; to_bool $REPLY && run $2; return;;
+		\|) run $1; to_bool $REPLY || run $2; return;;
+		W)  while run $1; to_bool $REPLY; do run $2; done; REPLY=N; return;;
+		I)  run $1; to_bool $REPLY; run ${@[2+?]}; return;;
+	esac
+
+	## Now for functions which _do_ evaluate all their arguments. Here, we
+	# replace the arguments with their evaluated version one-at-a-time.
+	local i
+	for (( i = 1; i <= #; i++ )); do
+		run $@[i]
+		argv[$i]=$REPLY # argv is an alias for @; we can't assign to @
+	done
+
+	## Execute the remaining functions
+	case $fn in
+		# ARITY 0
+		R) REPLY=i$RANDOM ;;
+		P) if IFS= read -r REPLY || [[ -n $REPLY ]]
+			then REPLY=s${REPLY%%$'\r'#}
+			else REPLY=N
+			fi ;;
+
+		# ARITY 1
+		C) run $1 ;;
+		E) to_str $1; eval_kn $REPLY ;;
+		\~) to_int $1; REPLY=i$((-REPLY)) ;;
+		\$) to_str $1; REPLY=s$($=REPLY) ;;
+		\!) ! to_bool $1; newbool ;;
+		Q) to_int $1; exit $REPLY ;;
+		L) # (technically only the * case is needed, but this speeds it up)
+			case $1 in
+			s*) REPLY=i${#1#s} ;;
+			a*) REPLY=i$arrays[$1] ;; 
+			*)  to_ary $1; REPLY=i$#reply ;;
+			esac ;;
+		D) dump $1; REPLY=$1 ;;
+		O) if to_str $1; [[ ${REPLY: -1} = \\ ]] # Needs a space so it's not `:-`
+			then print -rn -- ${REPLY%?}
+			else print -r  -- $REPLY
+			fi
+			REPLY=N ;;
+		,) new_ary $1 ;;
+		A) case $1 in
+			s*) 1=${1#s}; REPLY=i$(( #1 )) ;;
+			i*) REPLY=s${(#)1#i} ;;
+			*)  die "unknown argument to $fn: $1" ;;
+			esac ;;
+		\[) to_ary $1; REPLY=$reply[1] ;;
+		\]) case $1 in
+			s*) REPLY=s${1:2} ;;
+			*)  to_ary $1; shift reply; new_ary $reply ;;
+			esac ;;
+
+		# ARITY 2
+		\;) REPLY=$2 ;;
+		+) case $1 in
+			i*) to_int $2; REPLY=i$((${1#?} + REPLY)) ;;
+			s*) to_str $2; REPLY=s${1#?}$REPLY ;;
+			a*) to_ary $1; local old=($reply); to_ary $2; new_ary $old $reply ;;
+			*)  die "unknown argument to $fn: $1" ;;
+			esac ;;
+		-) to_int $2; REPLY=i$((${1#?} - REPLY)) ;;
+		\*) case $1 in
+			i*) to_int $2; REPLY=i$((${1#?} * REPLY)) ;;
+			s*) to_int $2; 1=${1#s}; REPLY=s${(pl:$((${#1} * REPLY))::$1:)} ;;
+			a*) to_ary $1; to_int $2; local -a ary
+				for (( i = 0; i < REPLY; i++ )); do
+					ary+=($reply)
+				done
+				new_ary $ary ;;
+			*) die "unknown argument to $fn: $1" ;;
+			esac ;;
+		/) to_int $2; REPLY=i$((${1#?} / REPLY)) ;;
+		%) to_int $2; REPLY=i$((${1#?} % REPLY)) ;;
+		\^) case $1 in
+			i*) to_int $2; REPLY=i$((${1#?} ** REPLY)) ;;
+			a*) to_str $2; ary_join "$REPLY" $1; REPLY=s$REPLY ;;
+			*)  die "unknown argument to $fn: $1" ;;
+			esac ;;
+		\?) are_equal $1 $2; newbool ;;
+		\<) compare $1 $2; (( REPLY < 0 )); newbool ;;
+		\>) compare $1 $2; (( REPLY > 0 )); newbool ;;
+
+		## Arity 3
+		G) case $1 in
+			s*) to_int $2
+				local start=$REPLY
+				to_int $3
+				REPLY=s${${1#s}:$start:$REPLY} ;;
+			a*) to_ary $1
+				to_int $2; shift $REPLY reply
+				to_int $3; shift -p $(($#reply - REPLY)) reply
+				new_ary $reply ;;
+			*) die "unknown argument to $fn: $1" ;;
+			esac ;;
+
+		## Arity 4
+		S) case $1 in
+			s*) to_int $2; local start=$REPLY
+				to_int $3; local len=$REPLY
+				to_str $4
+				REPLY=${1:0:$((start+1))}$REPLY${1:$((start+1+len))} ;;
+			a*) to_ary $1; local answer=($reply)
+				to_int $2; local start=$REPLY
+				to_int $3; local len=$REPLY
+				to_ary $4;
+				answer[start+1,start+len]=($reply)
+				new_ary $answer ;;
+			*) die "unknown argument to $fn: $1" ;;
+			esac ;;
+		*) die "BUG: unknown function $fn" ;;
+	esac
+	return 0
+}
+
+################################################################################
+#                          Handle command-line input                           #
+################################################################################
+
+usage () cat <<<"usage: ${ZSH_SCRIPT:t} [-h] (-e expr | -f file)"
+
+case $# in
+	0) set -- -f /dev/stdin ;&
+	2) case $1 in
+			-f) 2="$(<$2)" || exit ;&
+			-e) eval_kn $2; exit ;;
+			-h) usage; exit ;;
+			# in the error case, fall thru to the usage
+		esac ;&
+	*) usage >&2; exit 1
+esac
