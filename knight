@@ -157,34 +157,52 @@ s/^/"/; s/x$/"/' ;;
 	*) die "unknown type for dump: $1" ;;
 esac
 
-
-to_ary sAB\"
-new_ary s1 s2 $Reply
-dump $Reply
-exit
-
-
 ## Returns whether its arguments are equal, ie knight's `?` function
 are_equal () {
+	# expand out `r` references
+	[ "${1#r}" != "$1" ] && eval "set -- \$$1 \$2"
+	[ "${2#r}" != "$2" ] && eval "set -- \$1 \$$2"
+
 	# If they're identical, then they're equal.
 	[ "$1" = "$2" ] && return
 
+
 	# If either element isn't an array, then they're not equal; arrays are the
 	# only type which require more than a simple `=` comparison
-	if [ "${1#a}" != "$1" ] || [ "${2#a}" != "$2" ]; then
+	if [ "${1#a}" = "$1" ] || [ "${2#a}" = "$2" ]; then
 		return 1
 	fi
 
-	# If the arrays lengths aren't the same, they're not equal.
-	TODO
-	# (( arrays[$1] != arrays[$2] )) && return 1
+	# They're both arrays. Given how we've checked for direct equality, the only
+	# things that we need to check for now are `r*`s
 
-	# # If any element of either array isn't the same, they're not equal.
-	# local i
-	# for (( i = 0; i < arrays[$1]; i++ )) do
-	# 	are_equal $arrays[$1:$i] $arrays[$2:$i] || return 1
-	# done
+	while [ -n "$1" ] && [ -n "$2" ]; do
+		_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
+		_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}
+		set -- "$_tmp1" "$_tmp2"
 
-	# # The arrays were equal!
-	# return 0
+		# Hey they're the same, we're good!
+		[ "$_prefix1" = "$_prefix2" ] && continue
+
+		# Hm, one of them isn't a reference, looks like they're not the same
+		if [ "${_prefix1#r}" = "$_prefix1" ] || [ "${_prefix1#r}" = "$_prefix1" ]; then
+			return 1
+		fi
+
+		# Both are references, test them out
+		are_equal "$_prefix1" "$_prefix2" || return
+	done
 }
+
+
+
+to_ary sAB\"
+new_ary s1 s2 $Reply
+q=$Reply
+to_ary sAB\"
+new_ary s1 s2 $Reply
+r=$Reply
+are_equal "$q" "$r"
+echo $?
+# dump $Reply
+# exit
