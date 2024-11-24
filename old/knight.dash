@@ -1,0 +1,134 @@
+#!/bin/bash
+
+set -u
+
+progname=$(dirname -- "$0")
+
+die () {
+	fmt="%s: $1\\n"
+	shift
+	printf "$fmt" $progname "$@" >&2
+	exit 1
+}
+
+bug () { die "bug:" "$@"; }
+
+line=
+next_line () { IFS= read -r line; }
+next_token () {
+
+	while [ -z "$line" ]; do 
+		# Read a line in
+		IFS= read -r line 
+
+		# Remove leading blank characters
+		remain=${line#*[!:\(\)\[\]\{\}[:blank:]]}
+		line="$(echo "")$remain"
+		line=${line#"$strip"}
+		printf "{%q}\\n{%q}"\\n "$strip" "$line"
+		exit
+	done
+	printf \<%q\>\\n "$strip"
+
+	case $(printf %c "$line") in
+		\#)
+			next_line
+			next_token;
+			return ;;
+		*) echo "other" ;;
+	esac
+	# chr=${line%"$newline"}
+	# line=$chr
+	# while true; do
+	# line=${line##[a]}
+	# # line=$(printf %s "$line" | sed 's/[][{}()[:blank:]:]*//')
+	# line=${line##\#*}
+	# [ -n "$line" ] && break
+		# read -r line || die "nope"
+	# done
+	printf "<%s>\n" "$line"
+}
+
+echo '  :::  [ } ( ] { ) : lol #D "#O" #hello # world }
+#world; O 3
+D 4' | next_token
+exit
+next_token () {
+
+	case "$(printf %c "$line")" in
+		[[:digit:]])
+			result=n$(expr "$line" : '\([[:digit:]]*\)')
+			line=${line#${result#?}} ;;
+
+		[[:lower:]_])
+			result=i${line%%[![:lower:][:digit:]_]*}
+			line=${line#${result#?}} ;;
+
+		[\'\"])
+			quote=$(printf %c "$line")
+			line=${line#?}
+
+			case $line in
+				*$quote*)
+					result=s$(printf %s "$line" | awk -F"$quote" '{ print $1 }')
+					line=${line#*$quote} ;;
+				*)
+					tmp=$line
+					found=
+					while read -r line; do
+						case $line in
+							*$quote*)
+								found=1
+								break ;;
+							*) tmp=$tmp$line ;;
+						esac
+					done
+
+					if [ -z "$found" ]; then
+						die "missing closing quote: $tmp$line"
+					fi
+
+					result=s$tmp$(printf %s "$line" |
+						awk -F"$quote" '{ print $2 }')
+					line=${line#*$quote} ;;
+		esac ;;
+	*)
+		func=$(printf '%c' "$line")
+		result=$(printf 'f%c\034' "$func")
+
+		if printf %c "$func" | grep '[[:upper:]]' >/dev/null; then
+			# if we're not punctuation, delete the remaining
+			# upper chars
+			line=${line#"${line%%[![:upper:]_]*}"}
+		else
+			# if we're punctuation, just delete that
+			line=${line#"$func"}
+		fi
+
+		case "$func" in
+			[NTFRP]) arity=0 ;;
+			["EBCQLOD\`!"]) arity=1 ;;
+			["-*+/%^?><&|;W="]) arity=2 ;;
+			[GI]) arity=3 ;;
+			[S]) arity=4 ;;
+			*) die "unknown token start '$func'" ;;
+		esac
+
+		eval "next_token_ret_${next_token_rec=0}=\$result"
+
+		for _ in $(seq 1 1 "$arity" 2>/dev/null); do
+			next_token_rec=$((next_token_rec+1))
+			next_token
+			next_token_rec=$((next_token_rec-1))
+
+			eval "next_token_ret_$next_token_rec=$(printf \
+				"%s%s\034" \
+				"\${next_token_ret_$next_token_rec}" \
+				"\$result")"
+		done
+
+		next_token_ast=$((next_token_ast+1))
+		eval "ast_token_$next_token_ast=\$next_token_ret_$next_token_rec"
+		result=ast_token_$next_token_ast ;;
+	esac
+}

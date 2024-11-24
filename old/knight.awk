@@ -1,4 +1,4 @@
-#!/usr/bin/awk -f
+#a!/usr/bin/awk -f
 
 # Prints a message and then exits.
 function die(msg) {
@@ -8,11 +8,14 @@ function die(msg) {
 
 # Parse command line parameters
 BEGIN {
+	for (var in ARGV) print "var: " ARGV[var] "\n"
+
 	if (ARGC != 3 || (ARGV[1] != "-e" && ARGV[1] != "-f")) {
 		# note there's no portable way to get script name, as `ARGV[0]` might be
 		# `/usr/bin/awk`...
 		die("usage: knight.awk (-e 'expr' | -f file)")
 	}
+
 
 	if (ARGV[1] == "-e") {
 		source_code = ARGV[2]
@@ -48,7 +51,7 @@ function bug(msg) {
 # encountered.
 function next_token() {
 	# Strip out all leading whitespace and comments
-	while (sub(/^([][[:blank:]\n(){}:]+|#[^\n]*\n)/, "")) {
+	while (sub(/^([[:blank:]\n():]+|#[^\n]*\n)/, "")) {
 		# do nothing
 	}
 
