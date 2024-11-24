@@ -8,13 +8,22 @@
 set -o nounset
 set -o noglob
 
-scriptname=${0##*/}
+# Naming scheme:
+# READ_ONLY
+# GlobalVariables
+# local_variable
+# _variable_that_doesnt_need_to_be_local
+
+readonly ARY_SEP=: # "$(printf %d \'28)"
+readonly SCRIPT_NAME=${0##*/}
+readonly NEWLINE='
+'
 
 ## Print out a message and exit the program
 die () {
 	fmt=$1
 	shift
-	printf "%s: $fmt\\n" "$scriptname" "$@"
+	printf "%s: $fmt\\n" "$SCRIPT_NAME" "$@"
 	exit 1
 }
 
@@ -24,25 +33,24 @@ TODO () { die "TODO: $*"; }
 #                                    Arrays                                    #
 ################################################################################
 
-readonly ARY_SEP=: # "$(printf %d \'28)"
 next_ary_eval_idx=0
 
 new_ary () {
-	reply=a$#
+	Reply=a$#
 
 	for _arg; do
 		if [ "${_arg#a}" = "$_arg" ]; then
-			reply=$reply$ARY_SEP$_arg
+			Reply=$Reply$ARY_SEP$_arg
 		else
 			# readonly
 			eval "r$next_ary_eval_idx=\$_arg"
-			reply=$reply${ARY_SEP}r$next_ary_eval_idx
+			Reply=$Reply${ARY_SEP}r$next_ary_eval_idx
 			next_ary_eval_idx=$((next_ary_eval_idx + 1))
 		fi
 	done
 }
 
-alias ary_split_1='
+alias explode-array-at-arg1='
 _old_IFS=$IFS
 IFS=$ARY_SEP
 set -o noglob
@@ -53,90 +61,74 @@ IFS=$_old_IFS
 '
 
 ary_join () {
-	# We have to have `result` be local because `to_str` will clobber `reply`.
-	local result= sep
-
-	sep=$1
+	# We have to have `result` be local because `to_str` will clobber `Reply`.
+	local sep=$1 result=
 	shift
 
-	_old_IFS=$IFS
-	IFS=$ARY_SEP
-	set -o noglob
-	set -- $1
-	shift
-	set +o noglob
-	IFS=$_old_IFS
+	explode-array-at-arg1
 
 	for _arg; do
 		to_str "$_arg"
-		result=$result${result:+$sep}$reply
+		result=$result${result:+$sep}$Reply
 	done
 
-	reply=$result
+	Reply=$result
 }
 
 ################################################################################
 #                                 Conversions                                  #
 ################################################################################
 
-## Converts its argument to a string, storing the result in $reply
+## Converts its argument to a string, storing the result in $Reply
 to_str () case $1 in
-	[si]*) reply=${1#?} ;;
-	T)     reply=true ;;
-	F)     reply=false ;;
-	N)     reply= ;;
-	r*)    eval "to_str $1" ;;
-	a*)    TODO to_str for array ;; # "ary_join $'\n' $1 ;; # `ary_join` sets result
+	[si]*) Reply=${1#?} ;;
+	T)     Reply=true ;;
+	F)     Reply=false ;;
+	N)     Reply= ;;
+	r*)    eval "to_str \$$1" ;;
+	a*)    ary_join "$NEWLINE" "$1" ;;
 	*) die "unknown type for to_str: $1" ;;
 esac
 
-
-
-new_ary s1 s2
-new_ary s1 s2 $reply
-ary_join _ $reply
-echo $reply
-
-exit
-
-exit
-
-## Converts its argument to an integer, storing the result in $reply
+## Converts its argument to an integer, storing the result in $Reply
 to_int () case $1 in
 	s*) case ${1%s} in
 		-*[!0-9]*) TODO ;;
 		[!-]*[!0-9]*) TODO ;;
-		*) reply=i${1%s} ;; # TODO: there's no way this works
+		*) Reply=i${1%s} ;; # TODO: there's no way this works
 		esac ;;
-	[FN]) reply=0 ;;
-	T)    reply=1 ;;
-	i*)   reply=${1#i} ;;
-	a*)   TODO to_int for array ;; #reply=$arrays[$1] ;;
-	*) die "unknown type for $0: $1" ;;
+	[FN]) Reply=0 ;;
+	T)    Reply=1 ;;
+	i*)   Reply=${1#i} ;;
+	r*)   eval "to_int \$$1" ;;
+	a*)   Reply=${1#a}
+	      Reply=${Reply%%"$ARY_SEP"*} ;;
+	*) die "unknown type for to_int: $1" ;;
 esac
 
 ## Returns 0 if its argument is truthy
-to_bool () case $1 in a*) TODO;; [sFN]|[ia]0) false; esac
+to_bool () case $1 in [sFN]|[ia]0) false; esac
 
-## Converts its argument to an array, storing the result in $reply
-# to_ary () case $1 in
-# 	[sFN]) reply=() ;; # Note that we handle the empty string case here
-# 	T)     reply=(T) ;;
-# 	s*)    reply=(s${(s::)^1#s}) ;;
-# 	i*)    reply=(i${${1#i}%%<->}${(s::)^1##i(-|)}) ;; # Oh boy! lol
-# 	a*) reply=()
-# 		while (( $#reply < arrays[$1] )) do
-# 			reply+=$arrays[$1:$#reply]
-# 		done ;;
-# 	*) die "unknown type for $0: $1" ;;
-# esac
+# Converts its argument to an array, storing the result in $Reply
+to_ary () case $1 in
+	[sFN]) Reply=a0 ;; # Note that we handle the empty string case here
+	T) Reply=a1:T ;;
+	s*) _str=${1#s}
+		Reply=a${#_str}
+		while [ -n "$_str" ]; do
+			Reply=$Reply${ARY_SEP}s$(printf %c "$_str")
+			_str=${_str#?}
+		done ;;
+	a*)    Reply=$1 ;;
+	*) die "unknown type for $0: $1" ;;
+esac
 
 ################################################################################
 #                                  Utilities                                   #
 ################################################################################
 
-## Sets `reply` to `T` or `F` based on the exit status of the last command.
-newbool () if [ $? -ne 0 ]; then reply=F; else reply=T; fi
+## Sets `Reply` to `T` or `F` based on the exit status of the last command.
+newbool () if [ $? -ne 0 ]; then Reply=F; else Reply=T; fi
 
 ## Dumps its argument to stdout.
 dump () case $1 in
@@ -144,15 +136,33 @@ dump () case $1 in
 	F) printf false ;;
 	N) printf null ;;
 	i) printf ${1%i} ;;
-		# Define a label @ the start
-		# Get the next line and append it to the pattern space
-	s*) printf %sx "$1" | sed '
+	s*) printf %sx "${1#s}" | sed '
 :s
 $!N;$!bs
 s/\\/\\\\/g;s/\t/\\t/g;s/\r/\\r/g;s/"/\\"/g;s/\n/\\n/g
-s/x$//' ;;
-	a*) TODO ;;
+s/^/"/; s/x$/"/' ;;
+	a0) printf \[\] ;;
+	a*) 
+		printf \[
+		explode-array-at-arg1
+
+		dump "$1"; shift
+		for _arg; do
+			printf ', '
+			dump "$_arg"
+		done
+		printf \]
+		;;
+	r*) eval "dump \$$1" ;;
+	*) die "unknown type for dump: $1" ;;
 esac
+
+
+to_ary sAB\"
+new_ary s1 s2 $Reply
+dump $Reply
+exit
+
 
 ## Returns whether its arguments are equal, ie knight's `?` function
 are_equal () {
