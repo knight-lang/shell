@@ -174,7 +174,8 @@ are_equal () {
 	fi
 
 	# They're both arrays. Given how we've checked for direct equality, the only
-	# things that we need to check for now are `r*`s
+	# things that we need to check for now are `r*`s. We also can't explode, as
+	# we have two arrays to deal with. lovely :-(
 
 	while [ -n "$1" ] && [ -n "$2" ]; do
 		_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
@@ -194,7 +195,45 @@ are_equal () {
 	done
 }
 
+## Sets $Reply to `-1`, `0`, or `1` depending on whether the first argument is
+# smaller than, equal to or greater than the second argument.
+compare () case $1 in
+	s*) to_str "$2"; if [ "${1#s}" \< "$Reply" ]; then
+			Reply=-1
+		else
+			[ "${1#s}" = "$Reply" ]
+			Reply=$?
+		fi ;;
+	T) to_bool "$2"; Reply=$?;;
+	F) to_bool "$2"; Reply=$(( - ! $? ));; # The `?` here is actually `$?`
+	i*) to_int "$2"; if [ "${1#i}" -lt "$Reply" ]; then
+			Reply=-1
+		else
+			[ "${1#i}" -eq "$Reply" ]
+			Reply=$?
+		fi ;;
+	a*) to_ary "$2"
 
+	_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
+	_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}
+	set -- "$_tmp1" "$_tmp2"
+
+	local len1=${_prefix1#a} len2=${_prefix2#a}
+	
+	while [ -n "$1" ] && [ -n "$2" ]; do
+		_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
+		_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}
+		set -- "$_tmp1" "$_tmp2"
+
+		compare "$_prefix1" "$_prefix2"
+		[ $Reply = 0 ] || return 0
+	done
+	compare i$len1 i$len2 ;;
+	*) die "unknown type for compare: $1" ;;
+esac
+
+compare a2:i1:i3 a2:i1:i3; echo $Reply
+exit
 
 to_ary sAB\"
 new_ary s1 s2 $Reply
