@@ -24,14 +24,43 @@ run () {
 
 	local fn=${1#f}; shift # Fn can be `_fn`
 
+	case $fn in
+		B) Reply=$1
+			return ;;
+
+		=) run "$2"
+			eval "$1=\$Reply"
+			return ;;
+
+		\&) run "$1"
+			to_bool "$Reply" && run "$2"
+			return ;;
+
+		\|) run "$1"
+			to_bool "$Reply" || run "$2"
+			return ;;
+
+		W) while run "$1"; to_bool "$Reply"
+			do run "$2"
+			done
+			Reply=N
+			return ;;
+
+		I) run "$1"
+			if to_bool "$Reply"
+			then run "$2"
+			else run "$3"
+			fi
+			return ;;
+	esac
+
 	# Execute functions
 	case $fn in
-		# Arity 1
+		# Arity 0
 		R) TODO "$fn" ;;
 		P) TODO "$fn" ;;
 
-		# Arity 2
-		B) Reply=$1 ;;
+		# Arity 1
 		C) run "$1"; run "$Reply" ;;
 		Q) to_int "$1"; exit $Reply ;;
 		D) run "$1"; set -- "$Reply"; dump "$1"; Reply="$1" ;;
@@ -91,11 +120,6 @@ run () {
 		G) TODO "$fn" ;;
 		S) TODO "$fn" ;;
 
-		=)  run "$2"; eval "$1=\$Reply" ; ;;
-		\&) run "$1"; to_bool "$Reply" && run "$2"; ;;
-		\|) run "$1"; to_bool "$Reply" || run "$2"; ;;
-		W)  while run "$1"; to_bool "$Reply"; do run "$2"; done; Reply=N; ;;
-		I)  run "$1"; if to_bool "$Reply"; then run "$2"; else run "$3"; fi ; ;;
 		*) die 'unknown function: %s' "$1" ;;
 	esac
 }

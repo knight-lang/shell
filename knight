@@ -51,7 +51,8 @@ readonly KNIGHT_DIR
 . "$KNIGHT_DIR/parsing.sh"
 . "$KNIGHT_DIR/evaluating.sh"
 
-eval_kn <<'EOS'
-O ^ 9 3
-EOS
-run "$Reply"
+eval_kn "$2"
+# eval_kn <<'EOS'
+# O ^ 9 3
+# EOS
+# run "$Reply"
