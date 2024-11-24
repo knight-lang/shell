@@ -10,11 +10,23 @@ set -o noglob
 
 # Naming scheme:
 # READ_ONLY
-# GlobalVariables
+# Global_Variables
 # local_variable
 # _variable_that_doesnt_need_to_be_local
 
+## Values:
+# i-?\d+                   - integer
+# s.*                      - string
+# [TFN]                    - true/false/null
+# v[a-z_][a-z0-9_]         - variable
+# a(\d+)(${ARY_SEP}value)* - array; \1 is len, \2+ is elements. value cannot be an ast
+# A(\d+)                   - array ref; `eval`ing it will give you the original array
+# f(.)(${FN_SEP}value)*    - function; \1 is name, \2+ are arguments.
+# F(\d+)                   - fn ref, `eval`ing it will give you the original AST
+##
+
 readonly ARY_SEP=: # "$(printf %d \'28)"
+readonly FN_SEP=\; # "$(printf %d \'29)"; needs to be diff from ARY_SEP
 readonly SCRIPT_NAME=${0##*/}
 readonly NEWLINE='
 '
@@ -33,7 +45,7 @@ TODO () { die "TODO: $*"; }
 #                                    Arrays                                    #
 ################################################################################
 
-next_ary_eval_idx=0
+Next_Ary_Ref_Idx=0
 
 new_ary () {
 	Reply=a$#
@@ -43,9 +55,9 @@ new_ary () {
 			Reply=$Reply$ARY_SEP$_arg
 		else
 			# readonly
-			eval "r$next_ary_eval_idx=\$_arg"
-			Reply=$Reply${ARY_SEP}r$next_ary_eval_idx
-			next_ary_eval_idx=$((next_ary_eval_idx + 1))
+			eval "A$Next_Ary_Ref_Idx=\$_arg"
+			Reply=$Reply${ARY_SEP}A$Next_Ary_Ref_Idx
+			Next_Ary_Ref_Idx=$((Next_Ary_Ref_Idx + 1))
 		fi
 	done
 }
@@ -85,7 +97,7 @@ to_str () case $1 in
 	T)     Reply=true ;;
 	F)     Reply=false ;;
 	N)     Reply= ;;
-	r*)    eval "to_str \$$1" ;;
+	A*)    eval "to_str \$$1" ;;
 	a*)    ary_join "$NEWLINE" "$1" ;;
 	*) die "unknown type for to_str: $1" ;;
 esac
@@ -100,7 +112,7 @@ to_int () case $1 in
 	[FN]) Reply=0 ;;
 	T)    Reply=1 ;;
 	i*)   Reply=${1#i} ;;
-	r*)   eval "to_int \$$1" ;;
+	A*)   eval "to_int \$$1" ;;
 	a*)   Reply=${1#a}
 	      Reply=${Reply%%"$ARY_SEP"*} ;;
 	*) die "unknown type for to_int: $1" ;;
@@ -153,15 +165,15 @@ s/^/"/; s/x$/"/' ;;
 		done
 		printf \]
 		;;
-	r*) eval "dump \$$1" ;;
+	A*) eval "dump \$$1" ;;
 	*) die "unknown type for dump: $1" ;;
 esac
 
 ## Returns whether its arguments are equal, ie knight's `?` function
 are_equal () {
-	# expand out `r` references
-	[ "${1#r}" != "$1" ] && eval "set -- \$$1 \$2"
-	[ "${2#r}" != "$2" ] && eval "set -- \$1 \$$2"
+	# expand out `A` references
+	[ "${1#A}" != "$1" ] && eval "set -- \$$1 \$2"
+	[ "${2#A}" != "$2" ] && eval "set -- \$1 \$$2"
 
 	# If they're identical, then they're equal.
 	[ "$1" = "$2" ] && return
@@ -174,7 +186,7 @@ are_equal () {
 	fi
 
 	# They're both arrays. Given how we've checked for direct equality, the only
-	# things that we need to check for now are `r*`s. We also can't explode, as
+	# things that we need to check for now are `A*`s. We also can't explode, as
 	# we have two arrays to deal with. lovely :-(
 
 	while [ -n "$1" ] && [ -n "$2" ]; do
@@ -186,7 +198,7 @@ are_equal () {
 		[ "$_prefix1" = "$_prefix2" ] && continue
 
 		# Hm, one of them isn't a reference, looks like they're not the same
-		if [ "${_prefix1#r}" = "$_prefix1" ] || [ "${_prefix1#r}" = "$_prefix1" ]; then
+		if [ "${_prefix1#A}" = "$_prefix1" ] || [ "${_prefix1#A}" = "$_prefix1" ]; then
 			return 1
 		fi
 
@@ -232,16 +244,150 @@ compare () case $1 in
 	*) die "unknown type for compare: $1" ;;
 esac
 
-compare a2:i1:i3 a2:i1:i3; echo $Reply
-exit
+################################################################################
+#                                   Parsing                                    #
+################################################################################
 
-to_ary sAB\"
-new_ary s1 s2 $Reply
-q=$Reply
-to_ary sAB\"
-new_ary s1 s2 $Reply
-r=$Reply
-are_equal "$q" "$r"
-echo $?
-# dump $Reply
-# exit
+arity () case $1 in
+	[PR]) Reply=0 ;;
+	[][\$OEBCQ\!LD,A\~]) Reply=1 ;;
+	[-+\*/%\^\?\<\>\&\|\;\=W]) Reply=2 ;;
+	[GI]) Reply=3 ;;
+	S) Reply=4 ;;
+	*) die 'unknown function: %s' "$1" ;;
+esac
+
+Next_Fn_Ref_Idx=0
+parse_fn () {
+	local arity result="f$1"
+
+	arity "$1"
+	arity=$Reply
+
+	while [ $arity -ne 0 ]; do
+		next_expr || return
+		# Expression wasn't an ast, just assign it 
+		if [ "${Reply#f}" = "$Reply" ]; then
+			result="$result$FN_SEP$Reply"
+		else
+			# Expression was a function, we have to get a refernece to it
+			eval "F$Next_Fn_Ref_Idx=\$Reply"
+			result=$result${FN_SEP}F$Next_Fn_Ref_Idx
+			Next_Fn_Ref_Idx=$((Next_Fn_Ref_Idx + 1))
+		fi
+
+		arity=$(( arity - 1 ))
+	done
+	Reply=$result
+
+	# Reply=A
+
+	# # Setup local variables; `arity`` needs to be on another line because it
+	# # relies on `ast` from the line before.
+	# local ast=${REPLY#f}
+	# local arity=$arities[$ast]
+
+	# # Parse out the arguments
+	# while (( arity-- )) do
+	# 	next_ast || die "missing argument $((arities[${ast:0:1}] - arity))" \
+	# 	                "for function ${(qq)ast:0:1}"
+	# 	ast+=$AST_FIELD_SEP$REPLY
+	# done
+
+	# # Add the AST to the list
+	# asts+=($ast)
+
+	# # Set `$REPLY` to the current AST.
+	# REPLY=A$#asts
+
+}
+Line=
+
+next_expr () {
+	# Strip leading whitespace and comments
+	while
+		Line=$(printf %s "$Line" | sed 's/^[[:blank:]:(){}]*//; /^#/d')
+		[ -z "$Line" ]
+	do
+		IFS= read -r Line
+	done
+
+	# Parse out the token
+	case $Line in
+		# Integers; cant use `0-9` cause it's locale-dependent technically
+		[0123456789]*)
+			Reply=i${Line%%[!0123456789]*}
+			Line=${Line#"${Reply#?}"} ;;
+
+		# Variables
+		[abcdefghijklmnopqrstuvwxyz_]*)
+			Reply=v${Line%%[!abcdefghijklmnopqrstuvwxyz_0123456789]*}
+			Line=${Line#"${Reply#?}"} ;;
+
+		# Strings; this have to be handled specially cause of multilined stuff
+		[\'\"]*)
+			_quote=$(printf %c "$Line")
+			Line=${Line#?}
+			while [ "${Line#*$_quote}" = "$Line" ]; do
+				IFS= read -r _tmp || die "missing ending $_quote quote."
+				Line=${Line}${NEWLINE}${_tmp}
+			done
+			
+			# while 
+			echo "{$_tmp}" "[$Line]"
+			exit
+
+			# if [ -n "$Line" ]; then
+			# 	Line=${Line#?} # Will always be a quote
+			# 	return
+			# fi
+
+			# while
+			# 	Line=$(printf %s "$Line" | sed 's/^[[:blank:]:(){}]*//; /^#/d')
+			# 	[ -z "$Line" ]
+			# do
+			# 	IFS= read -r Line
+			# done
+
+			# echo "{$_tmp} [$Line]"
+			# exit
+			# echo $_tmp
+			die "todo: parse strings" ;;
+
+		# Functions
+		[][TFNPRBCQDOLAWIGS\+\*\/\%\^\<\>\?\&\|\;\~\=\,-]*)
+			Reply=$(printf %c "$Line")
+
+			case $Reply in
+				[TFNPRBCQDOLAWIGS])
+					_tmp=${Line%%[!ABCDEFGHIJKLMNOPQRSTUVWXYZ_]*}
+					Line=${Line#"$_tmp"} ;;
+				*)
+					Line=${Line#?}
+			esac
+
+			case $Reply in
+				@) Reply=a0 ;;
+				[TFN]) ;;
+				*) parse_fn "$Reply"
+			esac ;;
+		*) die "unknown token start: '%c'" "$Line"
+	esac
+}
+
+
+# TODO: does string parsing handle `\r\n`?`
+next_expr <<EOS
+   #ls 
+'ab_$(printf '\r\n')
+q'_a
+'
+ 'def'
+  #def'
++ ~ 1 2
+0abc01T
+123a  1b
+EOS
+echo "{$Reply} {$Line}"
+echo $F0
+exit
