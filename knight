@@ -99,6 +99,7 @@ to_str () case $1 in
 	N)     Reply= ;;
 	A*)    eval "to_str \$$1" ;;
 	a*)    ary_join "$NEWLINE" "$1" ;;
+	[fF]*) run "$1"; to_str "$Reply" ;;
 	*) die "unknown type for to_str: $1" ;;
 esac
 
@@ -115,6 +116,7 @@ to_int () case $1 in
 	A*)   eval "to_int \$$1" ;;
 	a*)   Reply=${1#a}
 	      Reply=${Reply%%"$ARY_SEP"*} ;;
+	[fF]*) run "$1"; to_int "$Reply" ;;
 	*) die "unknown type for to_int: $1" ;;
 esac
 
@@ -131,7 +133,9 @@ to_ary () case $1 in
 			Reply=$Reply${ARY_SEP}s$(printf %c "$_str")
 			_str=${_str#?}
 		done ;;
+	A*)    eval "to_ary \$$1" ;;
 	a*)    Reply=$1 ;;
+	[fF]*) run "$1"; to_ary "$Reply" ;;
 	*) die "unknown type for $0: $1" ;;
 esac
 
@@ -147,7 +151,7 @@ dump () case $1 in
 	T) printf true ;;
 	F) printf false ;;
 	N) printf null ;;
-	i) printf ${1%i} ;;
+	i*) printf ${1#i} ;;
 	s*) printf %sx "${1#s}" | sed '
 :s
 $!N;$!bs
@@ -166,6 +170,7 @@ s/^/"/; s/x$/"/' ;;
 		printf \]
 		;;
 	A*) eval "dump \$$1" ;;
+	[fF]*) printf '[%s]' "$1" ;;
 	*) die "unknown type for dump: $1" ;;
 esac
 
@@ -279,30 +284,9 @@ parse_fn () {
 		arity=$(( arity - 1 ))
 	done
 	Reply=$result
-
-	# Reply=A
-
-	# # Setup local variables; `arity`` needs to be on another line because it
-	# # relies on `ast` from the line before.
-	# local ast=${REPLY#f}
-	# local arity=$arities[$ast]
-
-	# # Parse out the arguments
-	# while (( arity-- )) do
-	# 	next_ast || die "missing argument $((arities[${ast:0:1}] - arity))" \
-	# 	                "for function ${(qq)ast:0:1}"
-	# 	ast+=$AST_FIELD_SEP$REPLY
-	# done
-
-	# # Add the AST to the list
-	# asts+=($ast)
-
-	# # Set `$REPLY` to the current AST.
-	# REPLY=A$#asts
-
 }
-Line=
 
+Line=
 next_expr () {
 	# Strip leading whitespace and comments
 	while
@@ -336,11 +320,11 @@ next_expr () {
 			Line=${Line#"$Reply"} ;;
 
 		# Functions
-		[][TFNPRBCQDOLAWIGS\+\*\/\%\^\<\>\?\&\|\;\~\=\,-]*)
+		[][TFNPRBCQDOLAWIGSE\$\+\*\/\%\^\<\>\?\&\|\;\~\!\=\,-]*)
 			Reply=$(printf %c "$Line")
 
 			case $Reply in
-				[TFNPRBCQDOLAWIGS])
+				[TFNPRBCQDOLAWIGSE])
 					_tmp=${Line%%[!ABCDEFGHIJKLMNOPQRSTUVWXYZ_]*}
 					Line=${Line#"$_tmp"} ;;
 				*)
@@ -358,58 +342,73 @@ next_expr () {
 
 ## Evaluates the first arg as a knight program, putting the result in $REPLY.
 eval_kn () {
-	Line=$1
-	next_expr || die 'no program given'
+	next_expr <<EOS || die 'no program given'
+$1
+EOS
 	run "$Reply"
 }
 
 run () {
 	case $1 in
 		v*) eval "\$$1"; return ;; # `set -o nounset` will fail if the var isnt valid
+		F?*) eval "run \"\$$1\""; return ;;
 		[!f]*) Reply="$1"; return ;;
-		F*) eval "set -- \"\$$1\"" 
 	esac
 
 	# Explode the arguments
-	IFS=$FN_SEP && set -o noglob
-	set -- $1 && unset IFS && set +o noglob
+	_old_IFS=$IFS; IFS=$FN_SEP && set -o noglob
+	set -- $1 && IFS=$_old_IFS && set +o noglob
 
 	_fn=${1#f}; shift
 	case $_fn in
-		B)  Reply=$1; return ;;
-		=)  run "$2"; eval "$1=\$Reply"; return ;;
-		\&) run "$1"; to_bool "$Reply" && run "$2"; return;;
-		\|) run "$1"; to_bool "$Reply" || run "$2"; return;;
-		W)  while run "$1"; to_bool "$Reply"; do run "$2"; done; REPLY=N; return;;
-		I)  run "$1"; if to_bool "$Reply"; then run "$2"; else run "$3"; fi; return ;;
+		# Arity 1
+		R) TODO "$_fn" ;;
+		P) TODO "$_fn" ;;
+
+		# Arity 2
+		B) Reply=$1 ;;
+		C) run "$1"; run "$Reply" ;;
+		Q) to_int "$1"; exit $Reply ;;
+		D) run "$1"; set -- "$Reply"; dump "$1"; Reply="$1" ;;
+		O) TODO "$_fn" ;;
+		L) TODO "$_fn" ;;
+		!) ! to_bool "$1"; newbool ;;
+		\~) to_int "$1"; Reply=i$(( - Reply )) ;;
+		A) TODO "$_fn" ;;
+		,) run "$1" ; new_ary "$Reply" ;;
+		\[) run "$1"
+			case $Reply in
+				s*) Reply=s$(printf %c "$Reply") ;;
+				[aA]*) TODO "$_fn for arrays" ;;
+			esac ;;
+		\]) run "$1"
+			case $Reply in
+				s*) Reply=s${Reply#s?} ;;
+				[aA]*) TODO "$_fn for arrays" ;;
+			esac ;;
+
+		# +)
+		=)  run "$2"; eval "$1=\$Reply" ;;
+		\&) run "$1"; to_bool "$Reply" && run "$2";;
+		\|) run "$1"; to_bool "$Reply" || run "$2";;
+		W)  while run "$1"; to_bool "$Reply"; do run "$2"; done; REPLY=N;;
+		I)  run "$1"; if to_bool "$Reply"; then run "$2"; else run "$3"; fi ;;
 	esac
 }
 
 
-eval_kn '= a 3 ' # D "A B C"'
-echo $Reply
+next_expr <<EOS
+D , ! F
+EOS
+run 'f,(a2:i1:i2'
+echo "$Reply"
+echo
 
 exit
 ## Executes a value, and put its result in $REPLY
 function run {
-
-	## Now for functions which _do_ evaluate all their arguments. Here, we
-	# replace the arguments with their evaluated version one-at-a-time.
-	local i
-	for (( i = 1; i <= #; i++ )); do
-		run $@[i]
-		argv[$i]=$REPLY # argv is an alias for @; we can't assign to @
-	done
-
 	## Execute the remaining functions
 	case $fn in
-		# ARITY 0
-		R) REPLY=i$RANDOM ;;
-		P) if IFS= read -r REPLY || [[ -n $REPLY ]]
-			then REPLY=s${REPLY%%$'\r'#}
-			else REPLY=N
-			fi ;;
-
 		# ARITY 1
 		C) run $1 ;;
 		E) to_str $1; eval_kn $REPLY ;;
