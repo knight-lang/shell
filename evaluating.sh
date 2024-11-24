@@ -11,6 +11,8 @@ EOS
 	run "$Reply"
 }
 
+
+readonly UNIQ_SEP=\`
 run () {
 	case $1 in
 		v*) eval "run \$$1"; return ;; # `set -o nounset` will fail if the var isnt valid
@@ -53,6 +55,19 @@ run () {
 			fi
 			return ;;
 	esac
+
+	# Execute all the arguments
+	set -- "$fn" "$@"
+	while [ $# -gt 1 ]; do
+		run "$2"
+		_tmp=$1$UNIQ_SEP$Reply
+		shift 2
+		set -- "$_tmp" "$@"
+	done
+	_old_IFS=$IFS; IFS=$UNIQ_SEP && set -o noglob
+	set -- $1 && IFS=$_old_IFS && set +o noglob
+
+	local fn=${1#f}; shift # Fn can be `_fn`
 
 	# Execute functions
 	case $fn in
