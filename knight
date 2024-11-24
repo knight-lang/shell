@@ -328,31 +328,12 @@ next_expr () {
 		[\'\"]*)
 			_quote=$(printf %c "$Line")
 			Line=${Line#?}
-			while [ "${Line#*$_quote}" = "$Line" ]; do
+			while [ "${Line%$_quote*}" = "$Line" ]; do
 				IFS= read -r _tmp || die "missing ending $_quote quote."
 				Line=${Line}${NEWLINE}${_tmp}
 			done
-			
-			# while 
-			echo "{$_tmp}" "[$Line]"
-			exit
-
-			# if [ -n "$Line" ]; then
-			# 	Line=${Line#?} # Will always be a quote
-			# 	return
-			# fi
-
-			# while
-			# 	Line=$(printf %s "$Line" | sed 's/^[[:blank:]:(){}]*//; /^#/d')
-			# 	[ -z "$Line" ]
-			# do
-			# 	IFS= read -r Line
-			# done
-
-			# echo "{$_tmp} [$Line]"
-			# exit
-			# echo $_tmp
-			die "todo: parse strings" ;;
+			Reply=s${Line%%"$_quote"*}
+			Line=${Line#"$Reply"} ;;
 
 		# Functions
 		[][TFNPRBCQDOLAWIGS\+\*\/\%\^\<\>\?\&\|\;\~\=\,-]*)
@@ -379,7 +360,7 @@ next_expr () {
 # TODO: does string parsing handle `\r\n`?`
 next_expr <<EOS
    #ls 
-'ab_$(printf '\r\n')
+"ab_$(printf '\r\n')
 q'_a
 '
  'def'
@@ -388,6 +369,6 @@ q'_a
 0abc01T
 123a  1b
 EOS
+
 echo "{$Reply} {$Line}"
-echo $F0
 exit
