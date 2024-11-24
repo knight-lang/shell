@@ -26,7 +26,7 @@ set -o noglob
 ##
 
 readonly ARY_SEP=: # "$(printf %d \'28)"
-readonly FN_SEP=\; # "$(printf %d \'29)"; needs to be diff from ARY_SEP
+readonly FN_SEP=\( # "$(printf %d \'29)"; needs to be diff from ARY_SEP
 readonly SCRIPT_NAME=${0##*/}
 readonly NEWLINE='
 '
@@ -356,6 +356,174 @@ next_expr () {
 	esac
 }
 
+## Evaluates the first arg as a knight program, putting the result in $REPLY.
+eval_kn () {
+	Line=$1
+	next_expr || die 'no program given'
+	run "$Reply"
+}
+
+run () {
+	case $1 in
+		v*) eval "\$$1"; return ;; # `set -o nounset` will fail if the var isnt valid
+		[!f]*) Reply="$1"; return ;;
+		F*) eval "set -- \"\$$1\"" 
+	esac
+
+	# Explode the arguments
+	IFS=$FN_SEP && set -o noglob
+	set -- $1 && unset IFS && set +o noglob
+
+	_fn=${1#f}; shift
+	case $_fn in
+		B)  Reply=$1; return ;;
+		=)  run "$2"; eval "$1=\$Reply"; return ;;
+		\&) run "$1"; to_bool "$Reply" && run "$2"; return;;
+		\|) run "$1"; to_bool "$Reply" || run "$2"; return;;
+		W)  while run "$1"; to_bool "$Reply"; do run "$2"; done; REPLY=N; return;;
+		I)  run "$1"; if to_bool "$Reply"; then run "$2"; else run "$3"; fi; return ;;
+	esac
+}
+
+
+eval_kn '= a 3 ' # D "A B C"'
+echo $Reply
+
+exit
+## Executes a value, and put its result in $REPLY
+function run {
+
+	## Now for functions which _do_ evaluate all their arguments. Here, we
+	# replace the arguments with their evaluated version one-at-a-time.
+	local i
+	for (( i = 1; i <= #; i++ )); do
+		run $@[i]
+		argv[$i]=$REPLY # argv is an alias for @; we can't assign to @
+	done
+
+	## Execute the remaining functions
+	case $fn in
+		# ARITY 0
+		R) REPLY=i$RANDOM ;;
+		P) if IFS= read -r REPLY || [[ -n $REPLY ]]
+			then REPLY=s${REPLY%%$'\r'#}
+			else REPLY=N
+			fi ;;
+
+		# ARITY 1
+		C) run $1 ;;
+		E) to_str $1; eval_kn $REPLY ;;
+		\~) to_int $1; REPLY=i$((-REPLY)) ;;
+		\$) to_str $1; REPLY=s$($=REPLY) ;;
+		\!) ! to_bool $1; newbool ;;
+		Q) to_int $1; exit $REPLY ;;
+		L) # (technically only the * case is needed, but this speeds it up)
+			case $1 in
+			s*) REPLY=i${#1#s} ;;
+			a*) REPLY=i$arrays[$1] ;; 
+			*)  to_ary $1; REPLY=i$#reply ;;
+			esac ;;
+		D) dump $1; REPLY=$1 ;;
+		O) if to_str $1; [[ ${REPLY: -1} = \\ ]] # Needs a space so it's not `:-`
+			then print -rn -- ${REPLY%?}
+			else print -r  -- $REPLY
+			fi
+			REPLY=N ;;
+		,) new_ary $1 ;;
+		A) case $1 in
+			s*) 1=${1#s}; REPLY=i$(( #1 )) ;;
+			i*) REPLY=s${(#)1#i} ;;
+			*)  die "unknown argument to $fn: $1" ;;
+			esac ;;
+		\[) to_ary $1; REPLY=$reply[1] ;;
+		\]) case $1 in
+			s*) REPLY=s${1:2} ;;
+			*)  to_ary $1; shift reply; new_ary $reply ;;
+			esac ;;
+
+		# ARITY 2
+		\;) REPLY=$2 ;;
+		+) case $1 in
+			i*) to_int $2; REPLY=i$((${1#?} + REPLY)) ;;
+			s*) to_str $2; REPLY=s${1#?}$REPLY ;;
+			a*) to_ary $1; local old=($reply); to_ary $2; new_ary $old $reply ;;
+			*)  die "unknown argument to $fn: $1" ;;
+			esac ;;
+		-) to_int $2; REPLY=i$((${1#?} - REPLY)) ;;
+		\*) case $1 in
+			i*) to_int $2; REPLY=i$((${1#?} * REPLY)) ;;
+			s*) to_int $2; 1=${1#s}; REPLY=s${(pl:$((${#1} * REPLY))::$1:)} ;;
+			a*) to_ary $1; to_int $2; local -a ary
+				for (( i = 0; i < REPLY; i++ )); do
+					ary+=($reply)
+				done
+				new_ary $ary ;;
+			*) die "unknown argument to $fn: $1" ;;
+			esac ;;
+		/) to_int $2; REPLY=i$((${1#?} / REPLY)) ;;
+		%) to_int $2; REPLY=i$((${1#?} % REPLY)) ;;
+		\^) case $1 in
+			i*) to_int $2; REPLY=i$((${1#?} ** REPLY)) ;;
+			a*) to_str $2; ary_join "$REPLY" $1; REPLY=s$REPLY ;;
+			*)  die "unknown argument to $fn: $1" ;;
+			esac ;;
+		\?) are_equal $1 $2; newbool ;;
+		\<) compare $1 $2; (( REPLY < 0 )); newbool ;;
+		\>) compare $1 $2; (( REPLY > 0 )); newbool ;;
+
+		## Arity 3
+		G) case $1 in
+			s*) to_int $2
+				local start=$REPLY
+				to_int $3
+				REPLY=s${${1#s}:$start:$REPLY} ;;
+			a*) to_ary $1
+				to_int $2; shift $REPLY reply
+				to_int $3; shift -p $(($#reply - REPLY)) reply
+				new_ary $reply ;;
+			*) die "unknown argument to $fn: $1" ;;
+			esac ;;
+
+		## Arity 4
+		S) case $1 in
+			s*) to_int $2; local start=$REPLY
+				to_int $3; local len=$REPLY
+				to_str $4
+				REPLY=${1:0:$((start+1))}$REPLY${1:$((start+1+len))} ;;
+			a*) to_ary $1; local answer=($reply)
+				to_int $2; local start=$REPLY
+				to_int $3; local len=$REPLY
+				to_ary $4;
+				answer[start+1,start+len]=($reply)
+				new_ary $answer ;;
+			*) die "unknown argument to $fn: $1" ;;
+			esac ;;
+		*) die "BUG: unknown function $fn" ;;
+	esac
+	return 0
+}
+
+################################################################################
+#                          Handle command-line input                           #
+################################################################################
+
+usage () cat <<<"usage: ${ZSH_SCRIPT:t} [-h] (-e expr | -f file)"
+
+case $# in
+	0) set -- -f /dev/stdin ;&
+	2) case $1 in
+			-f) 2="$(<$2)" || exit ;&
+			-e) eval_kn $2; exit ;;
+			-h) usage; exit ;;
+			# in the error case, fall thru to the usage
+		esac ;&
+	*) usage >&2; exit 1
+esac
+
+
+exit
+## The list of variables that exist.
+typeset -gA variables
 
 # TODO: does string parsing handle `\r\n`?`
 next_expr <<EOS
