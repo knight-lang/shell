@@ -6,7 +6,7 @@ dump () case $1 in
 	T) printf true ;;
 	F) printf false ;;
 	N) printf null ;;
-	i*) printf ${1#i} ;;
+	i*) printf %d ${1#i} ;;
 	s*) printf %sx "${1#s}" | sed '
 :s
 $!N;$!bs

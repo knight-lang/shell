@@ -76,7 +76,7 @@ run () {
 		P) TODO "$fn" ;;
 
 		# Arity 1
-		C) run "$1"; run "$Reply" ;;
+		C) run "$1" ;;
 		Q) to_int "$1"; exit $Reply ;;
 		D) run "$1"; set -- "$Reply"; dump "$1"; Reply="$1" ;;
 		O) if to_str "$1"; [ "${Reply%\\}" = "$Reply" ]; then
