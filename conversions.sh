@@ -36,6 +36,10 @@ to_ary () case $1 in
 	T) Reply=a1:T ;;
 	[si]*) _str=${1#?}
 		_kind=$(printf %c "$1")
+		if [ "${1#i-}" != "$1" ]; then
+			_kind=i-
+			_str=${_str#?}
+		fi
 		Reply=a${#_str}
 		while [ -n "$_str" ]; do
 			Reply=$Reply${ARY_SEP}$_kind$(printf %c "$_str")

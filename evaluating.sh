@@ -120,7 +120,7 @@ run () {
 
 		\[) # [ (head)
 			case $1 in
-				s*) Reply=s$(printf %c "$1") ;;
+				s*) Reply=$(printf %.2s "$1") ;;
 				a*) explode-array-at-arg1
 					if [ "${2#A}" != "$2" ] # Expand out resulting array refs
 					then eval "Reply=\$$2"
@@ -159,7 +159,7 @@ run () {
 		\*) # * (multiply)
 			to_int "$2" # all three cases happen to use ints for the second num.
 			case $1 in
-			i*) Reply=i$((${1#?} + Reply)) ;;
+			i*) Reply=i$((${1#?} * Reply)) ;;
 			s*) _tmp=$Reply; Reply=s
 				while [ $((_tmp -= 1)) -ge 0 ]; do
 					Reply=$Reply${1#s}
