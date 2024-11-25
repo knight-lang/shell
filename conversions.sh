@@ -34,7 +34,9 @@ to_bool () case $1 in [sFN]|[ia]0) false;; [fFv]*) run "$1"; to_bool "$Reply"; e
 to_ary () case $1 in
 	[sFN]) Reply=a0 ;; # Note that we handle the empty string case here
 	T) Reply=a1:T ;;
-	i*) TODO "to_ary for int" ;;
+	i*) _int=${1#i}
+		_sign=
+		[[ if ]]
 	s*) _str=${1#s}
 		Reply=a${#_str}
 		while [ -n "$_str" ]; do

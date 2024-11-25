@@ -38,7 +38,7 @@ next_expr () {
 		Line=$(printf %s "$Line" | sed 's/^[[:blank:]:(){}]*//; /^#/d')
 		[ -z "$Line" ]
 	do
-		IFS= read -r Line
+		IFS= read -r Line || return
 	done
 
 	# Parse out the token
