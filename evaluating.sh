@@ -20,8 +20,8 @@ run () {
 	esac
 
 	# Explode the arguments
-	_old_IFS=$IFS; IFS=$FN_SEP && set -o noglob
-	set -- $1 && IFS=$_old_IFS && set +o noglob
+	IFS=$FN_SEP; set -o noglob
+	set -- $1; unset IFS; set +o noglob
 
 	local fn=${1#f}; shift # Fn can be `_fn`
 
@@ -35,8 +35,8 @@ run () {
 			shift 2
 			set -- "$_tmp" "$@"
 		done
-		_old_IFS=$IFS; IFS=$UNIQ_SEP && set -o noglob
-		set -- $1 && IFS=$_old_IFS && set +o noglob
+		IFS=$UNIQ_SEP; set -o noglob
+		set -- $1; unset IFS; set +o noglob
 
 		fn=${1#f}; shift # Fn can be `_fn`
 	esac
@@ -107,7 +107,7 @@ run () {
 
 		A) # ASCII
 			case $1 in
-			s*) Reply=i$(printf %d \'"$Reply") ;;
+			s*) Reply=i$(printf %d \'"$1") ;;
 			i*) TODO ;; #printf '%b\n' '\060' octal ew
 			*)  die "unknown argument to $fn: $1" ;;
 			esac ;;
@@ -116,16 +116,19 @@ run () {
 			new_ary "$1" ;;
 
 		\[) # [ (head)
-			case $Reply in
-				s*) Reply=s$(printf %c "$Reply") ;;
-		
-				[aA]*) TODO "$fn for arrays" ;;
+			case $1 in
+				s*) Reply=s$(printf %c "$1") ;;
+				a*) 
+					explode-array-at-arg1
+					Reply=$2 ;;
+				*)  die "unknown argument to $fn: $1"
 			esac ;;
 
 		\]) # ] (tail)
-			case $Reply in
-				s*) Reply=s${Reply#s?} ;;
-				[aA]*) TODO "$fn for arrays" ;;
+			case $1 in
+				s*) Reply=s${1#s?} ;;
+				a*) TODO "$fn for arrays" ;;
+				*)  die "unknown argument to $fn: $1"
 			esac ;;
 
 
