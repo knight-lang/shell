@@ -12,7 +12,6 @@ set -o noglob
 # READ_ONLY
 # Global_Variables
 # local_variable
-# _variable_that_doesnt_need_to_be_local
 
 ## Values:
 # i-?\d+                   - integer
