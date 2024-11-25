@@ -25,6 +25,7 @@ set -o noglob
 # F(\d+)                   - fn ref, `eval`ing it will give you the original AST
 ##
 
+readonly ARY_SEP=\:
 readonly FN_SEP=\( # "$(printf %d \'29)"; needs to be diff from ARY_SEP
 readonly SCRIPT_NAME=${0##*/}
 readonly NEWLINE='

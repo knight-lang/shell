@@ -43,20 +43,32 @@ else
 	eval "Reply=\$$1"
 fi
 
+## Concatenates a knight array (argument 2) by a string (argument 1), placing
+# the result in `$Reply`.
 ary_join () {
-	# We have to have `result` be local because `to_str` will clobber `Reply`.
-	local sep=$1 result=
-	shift
+	# If the array is empty, just return nothing
+	[ "$2" = a0 ] && { Reply=; return; }
 
-	IFS=$ARY_SEP && set -o noglob
-	set -- $1 && set +o noglob && unset IFS
+	# Set the result to start as an empty string
+	_tmp=${2#*"$ARY_SEP"}
+	set -- "$1" "$_tmp$ARY_SEP" ''
 
-	shift # delete `aLEN` prefix
+	# While there's still something left to join
+	while [ -n "$2" ]; do
+		# Get the element to join
+		_element=${2%%"$ARY_SEP"*}
 
-	for _arg; do
-		to_str "$_arg"
-		result=$result${result:+$sep}$Reply
+		# Convert it to a string
+		to_str "$_element"
+
+		# Delete the first element out
+		_rest=${2#*"$ARY_SEP"}
+
+		# Update the list of arguments
+		set -- "$1" "$_rest" "$3$1$Reply"	
 	done
 
-	Reply=$result
+	# Since we had an extra `$ARY_SEP` when setting up the args, we need to
+	# remove the resulting separator
+	Reply=${3#"$1"}
 }
