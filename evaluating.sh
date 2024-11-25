@@ -121,7 +121,8 @@ run () {
 		\[) # [ (head)
 			case $1 in
 				s*) Reply=$(printf %.2s "$1") ;;
-				a*) explode-array-at-arg1
+				a*) IFS=$ARY_SEP && set -o noglob
+					set -- $1 && set +o noglob && unset IFS
 					expandref "$2" ;;
 				*)  die "unknown argument to $fn: $1"
 			esac ;;
@@ -129,7 +130,8 @@ run () {
 		\]) # ] (tail)
 			case $1 in
 				s*) Reply=s${1#s?} ;;
-				a*) explode-array-at-arg1
+				a*) IFS=$ARY_SEP && set -o noglob
+					set -- $1 && set +o noglob && unset IFS
 					shift 2; new_ary "$@" ;;
 				*)  die "unknown argument to $fn: $1"
 			esac ;;

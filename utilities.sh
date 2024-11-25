@@ -15,7 +15,8 @@ s/^/"/; s/x$/"/' ;;
 	a0) printf \[\] ;;
 	a*) 
 		printf \[
-		explode-array-at-arg1
+		IFS=$ARY_SEP && set -o noglob
+		set -- $1 && set +o noglob && unset IFS
 		shift # delte `$@` prefix
 
 		dump "$1"; shift
