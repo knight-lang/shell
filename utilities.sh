@@ -1,5 +1,9 @@
 ## Sets `Reply` to `T` or `F` based on the exit status of the last command.
-newbool () if [ $? -ne 0 ]; then Reply=F; else Reply=T; fi
+newbool () if [ $? -ne 0 ]; then
+	Reply=F
+else
+	Reply=T
+fi
 
 ## Dumps its argument to stdout.
 dump () case $1 in

@@ -1,3 +1,4 @@
+## Sets `$Reply` To the amount of arguments the Knight function in `$1` expects. 
 arity () case $1 in
 	[PR]) Reply=0 ;;
 	[][\$OEBCQ\!LD,AV\~]) Reply=1 ;;
@@ -6,30 +7,6 @@ arity () case $1 in
 	S) Reply=4 ;;
 	*) die 'unknown function: %s' "$1" ;;
 esac
-
-Next_Fn_Ref_Idx=0
-parse_fn () {
-	local arity result="f$1"
-
-	arity "$1"
-	arity=$Reply
-
-	while [ $arity -ne 0 ]; do
-		next_expr || return
-		# Expression wasn't an ast, just assign it 
-		if [ "${Reply#f}" = "$Reply" ]; then
-			result="$result$FN_SEP$Reply"
-		else
-			# Expression was a function, we have to get a refernece to it
-			eval "F$Next_Fn_Ref_Idx=\$Reply"
-			result=$result${FN_SEP}F$Next_Fn_Ref_Idx
-			Next_Fn_Ref_Idx=$((Next_Fn_Ref_Idx + 1))
-		fi
-
-		arity=$(( arity - 1 ))
-	done
-	Reply=$result
-}
 
 Line=
 next_expr () {
@@ -88,4 +65,29 @@ next_expr () {
 			esac ;;
 		*) die "unknown token start: '%c'" "$Line"
 	esac
+}
+
+
+Next_Fn_Ref_Idx=0
+parse_fn () {
+	local arity result="f$1"
+
+	arity "$1"
+	arity=$Reply
+
+	while [ $arity -ne 0 ]; do
+		next_expr || return
+		# Expression wasn't an ast, just assign it 
+		if [ "${Reply#f}" = "$Reply" ]; then
+			result="$result$FN_SEP$Reply"
+		else
+			# Expression was a function, we have to get a refernece to it
+			eval "F$Next_Fn_Ref_Idx=\$Reply"
+			result=$result${FN_SEP}F$Next_Fn_Ref_Idx
+			Next_Fn_Ref_Idx=$((Next_Fn_Ref_Idx + 1))
+		fi
+
+		arity=$(( arity - 1 ))
+	done
+	Reply=$result
 }

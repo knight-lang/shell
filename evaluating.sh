@@ -59,10 +59,16 @@ run () {
 
 	# Arity 0
 		P) # PROMPT
-			TODO "$fn" ;;
+			read -r Reply || { Reply=N; return; }
+			# This could be optimized
+			_r=$(printf \\r)
+			while _tmp=${Reply%"$_r"}; [ ${#_tmp} -ne ${#Reply} ]; do
+				Reply=${Reply%?}
+			done
+			Reply=s$Reply ;;
 
 		R) # RANDOM
-			TODO "$fn" ;;
+			Reply=i$(awk 'BEGIN{ srand(); print int(rand() * 65535); exit }') ;;
 
 
 	# Arity 1
