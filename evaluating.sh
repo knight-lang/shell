@@ -11,6 +11,8 @@ EOS
 	run "$Reply"
 }
 
+seed=
+
 readonly UNIQ_SEP=\`
 run () {
 	case $1 in
@@ -67,7 +69,8 @@ run () {
 			Reply=s$Reply ;;
 
 		R) # RANDOM
-			Reply=i$(awk 'BEGIN{ srand(); print int(rand() * 65535); exit }') ;;
+			Reply=i$(awk "BEGIN{ srand($seed); print int(rand() * 4294967295); exit }")
+			seed=${Reply#i};;
 
 
 	# Arity 1
