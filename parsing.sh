@@ -64,6 +64,11 @@ next_expr () {
 			Reply=s${Line%%"$_quote"*}
 			Line=${Line#"${Reply#s}$_quote"} ;;
 
+		# Array literal
+		@*)
+			Reply=a0
+			Line=${Line#?} ;;
+
 		# Functions
 		[][TFNPRBCQDOLAWVIGSE\$\+\*\/\%\^\<\>\?\&\|\;\~\!\=\,-]*)
 			Reply=$(printf %c "$Line")

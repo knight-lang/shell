@@ -91,7 +91,11 @@ run () {
 			Reply=N ;;
 
 		L) # LENGTH
-			TODO "$fn" ;;
+			case $1 in
+			s*) Reply=i$(( ${#1} - 1 )) ;; # Have to subtract 1 for prefix
+			a*) echo "$1"; exit ;Reply=a$(());;
+			*)  die "unknown argument to $fn: $1" ;;
+			esac ;;
 
 		!) # ! (not)
 			! to_bool "$1"
@@ -105,6 +109,7 @@ run () {
 			case $1 in
 			s*) Reply=i$(printf %d \'"$Reply") ;;
 			i*) TODO ;; #printf '%b\n' '\060' octal ew
+			*)  die "unknown argument to $fn: $1" ;;
 			esac ;;
 
 		,) # , (box)
