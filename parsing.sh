@@ -1,6 +1,6 @@
 arity () case $1 in
 	[PR]) Reply=0 ;;
-	[][\$OEBCQ\!LD,A\~]) Reply=1 ;;
+	[][\$OEBCQ\!LD,AV\~]) Reply=1 ;;
 	[-+\*/%\^\?\<\>\&\|\;\=W]) Reply=2 ;;
 	[GI]) Reply=3 ;;
 	S) Reply=4 ;;
@@ -65,11 +65,11 @@ next_expr () {
 			Line=${Line#"${Reply#s}$_quote"} ;;
 
 		# Functions
-		[][TFNPRBCQDOLAWIGSE\$\+\*\/\%\^\<\>\?\&\|\;\~\!\=\,-]*)
+		[][TFNPRBCQDOLAWVIGSE\$\+\*\/\%\^\<\>\?\&\|\;\~\!\=\,-]*)
 			Reply=$(printf %c "$Line")
 
 			case $Reply in
-				[TFNPRBCQDOLAWIGSE])
+				[TFNPRBCQDOLAVWIGSE])
 					_tmp=${Line%%[!ABCDEFGHIJKLMNOPQRSTUVWXYZ_]*}
 					Line=${Line#"$_tmp"} ;;
 				*)

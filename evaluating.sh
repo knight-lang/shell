@@ -11,7 +11,6 @@ EOS
 	run "$Reply"
 }
 
-
 readonly UNIQ_SEP=\`
 run () {
 	case $1 in
@@ -26,114 +25,197 @@ run () {
 
 	local fn=${1#f}; shift # Fn can be `_fn`
 
-	case $fn in
-		B) Reply=$1
-			return ;;
+	# Execute arguments for functions that need them executed
+	case $fn in [!B=\&\|WI]) # TODO: is it `!` or `^`?
+		# Execute all the arguments
+		set -- "$fn" "$@"
+		while [ $# -gt 1 ]; do
+			run "$2"
+			_tmp=$1$UNIQ_SEP$Reply
+			shift 2
+			set -- "$_tmp" "$@"
+		done
+		_old_IFS=$IFS; IFS=$UNIQ_SEP && set -o noglob
+		set -- $1 && IFS=$_old_IFS && set +o noglob
 
-		=) run "$2"
-			eval "$1=\$Reply"
-			return ;;
-
-		\&) run "$1"
-			to_bool "$Reply" && run "$2"
-			return ;;
-
-		\|) run "$1"
-			to_bool "$Reply" || run "$2"
-			return ;;
-
-		W) while run "$1"; to_bool "$Reply"
-			do run "$2"
-			done
-			Reply=N
-			return ;;
-
-		I) run "$1"
-			if to_bool "$Reply"
-			then run "$2"
-			else run "$3"
-			fi
-			return ;;
+		fn=${1#f}; shift # Fn can be `_fn`
 	esac
-
-	# Execute all the arguments
-	set -- "$fn" "$@"
-	while [ $# -gt 1 ]; do
-		run "$2"
-		_tmp=$1$UNIQ_SEP$Reply
-		shift 2
-		set -- "$_tmp" "$@"
-	done
-	_old_IFS=$IFS; IFS=$UNIQ_SEP && set -o noglob
-	set -- $1 && IFS=$_old_IFS && set +o noglob
-
-	local fn=${1#f}; shift # Fn can be `_fn`
 
 	# Execute functions
 	case $fn in
-		# Arity 0
-		R) TODO "$fn" ;;
-		P) TODO "$fn" ;;
+	# Extensions
+		E) # EVAL
+			to_str "$1"
+			eval_kn "$Reply" ;;
 
-		# Arity 1
-		C) run "$1" ;;
-		Q) to_int "$1"; exit $Reply ;;
-		D) run "$1"; set -- "$Reply"; dump "$1"; Reply="$1" ;;
-		O) if to_str "$1"; [ "${Reply%\\}" = "$Reply" ]; then
+		\$) # $ (system)
+			to_str "$1"
+			Reply=s$( $Reply ) ;;
+
+		V) # VALUE
+			to_str "$1"
+			eval "run \$v${1#s}" ;;
+
+
+	# Arity 0
+		P) # PROMPT
+			TODO "$fn" ;;
+
+		R) # RANDOM
+			TODO "$fn" ;;
+
+
+	# Arity 1
+		B) # BLOCK {args weren't evaluated}
+			Reply=$1
+			return ;;
+
+		C) # CALL
+			run "$1" ;;
+
+		Q) # QUIT
+			to_int "$1"
+			exit $Reply ;;
+
+		D) # DUMP
+			dump "$1"
+			Reply="$1" ;;
+
+		O) # OUTPUT
+			to_str "$1"
+			if [ "${Reply%\\}" = "$Reply" ]; then
 				printf '%s\n' "$Reply"
 			else
 				printf '%s' "${Reply%?}"
 			fi
 			Reply=N ;;
-		L) TODO "$fn" ;;
-		!) ! to_bool "$1"; newbool ;;
-		\~) to_int "$1"; Reply=i$(( - Reply )) ;;
-		A) run "$1"; case $Reply in
+
+		L) # LENGTH
+			TODO "$fn" ;;
+
+		!) # ! (not)
+			! to_bool "$1"
+			newbool ;;
+
+		\~) # ~ (negate)
+			to_int "$1"
+			Reply=i$(( - Reply )) ;;
+
+		A) # ASCII
+			case $1 in
 			s*) Reply=i$(printf %d \'"$Reply") ;;
 			i*) TODO ;; #printf '%b\n' '\060' octal ew
 			esac ;;
-		,) run "$1" ; new_ary "$Reply" ;;
-		\[) run "$1"
+
+		,) # , (box)
+			new_ary "$1" ;;
+
+		\[) # [ (head)
+			run "$1"
 			case $Reply in
 				s*) Reply=s$(printf %c "$Reply") ;;
 				[aA]*) TODO "$fn for arrays" ;;
 			esac ;;
-		\]) run "$1"
+
+		\]) # ] (tail)
+			run "$1"
 			case $Reply in
 				s*) Reply=s${Reply#s?} ;;
 				[aA]*) TODO "$fn for arrays" ;;
 			esac ;;
-		E) to_str "$1"; eval_kn "$Reply" ;;
-		\$) to_str "$1"; Reply=s$( $Reply ) ;;
 
-		# Arity 2
-		\;) run "$1"; run "$2" ;;
-		+) run "$1"; set -- "$Reply" "$2"; case $1 in
+
+	# Arity 2
+		+) # + (add)
+			case $1 in
 			i*) to_int "$2"; Reply=i$((${1#?} + Reply)) ;;
 			s*) to_str "$2"; Reply=s${1#?}$Reply ;;
 			[aA]*) TODO "$fn for arrays" ;;
 			*)  die "unknown argument to $fn: $1" ;;
 			esac ;;
-		-) run "$1"; set -- "$Reply" "$2"; to_int "$2"; Reply=i$((${1#?} - Reply)) ;;
-		\*) run "$1"; set -- "$eply" "$2"; case $1 in
+
+		-) # - (subtract)
+			to_int "$2"
+			Reply=i$((${1#?} - Reply)) ;;
+
+		\*) # * (multiply)
+			case $1 in
 			i*) to_int "$2"; Reply=i$((${1#?} + Reply)) ;;
 			s*) TODO "$fn for strings" ;;
 			[aA]*) TODO "$fn for arrays" ;;
 			*)  die "unknown argument to $fn: $1"
 			esac ;;
-		/) run "$1"; set -- "$Reply" "$2"; to_int "$2"; Reply=i$((${1#?} / Reply)) ;;
-		%) run "$1"; set -- "$Reply" "$2"; to_int "$2"; Reply=i$((${1#?} % Reply)) ;;
-		^) run "$1"; set -- "$Reply" "$2"; case "$1" in
+
+		/) # / (divide)
+			to_int "$2"
+			Reply=i$((${1#?} / Reply)) ;;
+
+		%) # % (modulo)
+			to_int "$2"
+			Reply=i$((${1#?} % Reply)) ;;
+
+		^) # ^ (power)
+			case $1 in
 			i*) to_int "$2"; Reply=i$(echo "${1#?} ^ $Reply" | bc) ;; # no exponents in posix
 			[aA]*) TODO "$fn for arrays" ;;
 			*)  die "unknown argument to $fn: $1"
 			esac ;;
-		\?) run "$1"; set --  "$Reply" "$2"; run "$2"; are_equal "$1" "$Reply"; newbool ;;
-		\<) run "$1"; compare "$Reply" "$2"; [ $Reply -lt 0 ]; newbool ;;
-		\>) run "$1"; compare "$Reply" "$2"; [ $Reply -gt 0 ]; newbool ;;
 
-		G) TODO "$fn" ;;
-		S) TODO "$fn" ;;
+		\<) # < (less-than)
+			compare "$@"
+			[ $Reply -lt 0 ]
+			newbool ;;
+
+		\>) compare "$@"
+			[ $Reply -gt 0 ]
+			newbool ;;
+
+		\?) # ? (equals)
+			are_equal "$@"
+			newbool ;;
+
+		\&) # & (and) {args weren't evaluated}
+			run "$1"
+			to_bool "$Reply" && run "$2"
+			return ;;
+
+		\|) # | (or) {args weren't evaluated}
+			run "$1"
+			to_bool "$Reply" || run "$2"
+			return ;;
+
+		\;) # ; (then)
+			Reply=$2 ;; # We've already actually executed it
+
+		=) # = (assign) {args weren't evaluated}
+			run "$2"
+			eval "$1=\$Reply"
+			return ;;
+
+		W) # WHILE {args weren't evaluated}
+			while run "$1"; to_bool "$Reply"
+			do run "$2"
+			done
+			Reply=N
+			return ;;
+
+
+	# Arity 3
+		I) # IF {args weren't evaluated}
+			run "$1"
+			if to_bool "$Reply"
+			then run "$2"
+			else run "$3"
+			fi
+			return ;;
+
+		G) # GET
+			TODO "$fn" ;;
+
+
+	# Arity 4
+		S) # SET
+			TODO "$fn" ;;
 
 		*) die 'unknown function: %s' "$1" ;;
 	esac

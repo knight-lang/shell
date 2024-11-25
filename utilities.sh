@@ -25,7 +25,7 @@ s/^/"/; s/x$/"/' ;;
 		printf \]
 		;;
 	A*) eval "dump \$$1" ;;
-	[fFv]*) printf '[%s]' "$1" ;;
+	[fFv]*) printf '{%s}' "$1" ;;
 	*) die "unknown type for dump: $1" ;;
 esac
 
