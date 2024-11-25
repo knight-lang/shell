@@ -97,17 +97,17 @@ compare () case $1 in
 	_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}
 	set -- "$_tmp1" "$_tmp2"
 
-	local len1=${_prefix1#a} len2=${_prefix2#a}
+	set -- "$@" "${_prefix1#a}" "${_prefix2#a}"
 	
 	while [ -n "$1" ] && [ -n "$2" ]; do
 		_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
 		_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}
-		set -- "$_tmp1" "$_tmp2"
+		set -- "$_tmp1" "$_tmp2" "$3" "$4"
 		expandref "$_prefix1"; _prefix1=$Reply
 		expandref "$_prefix2"
 		compare "$_prefix1" "$Reply"
 		[ $Reply = 0 ] || return 0
 	done
-	compare i$len1 i$len2 ;;
+	compare i$3 i$4 ;;
 	*) die "unknown type for compare: $1" ;;
 esac
