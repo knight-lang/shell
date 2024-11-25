@@ -1,5 +1,11 @@
 Next_Ary_Ref_Idx=0
 
+expandref () if [ "${1#A}" = "$1" ]; then
+	Reply=$1
+else
+	eval "Reply=\$$1"
+fi
+
 new_ary () {
 	Reply=a$#
 

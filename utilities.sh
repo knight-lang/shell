@@ -32,7 +32,7 @@ esac
 
 ## Returns whether its arguments are equal, ie knight's `?` function
 are_equal () {
-	# expand out `A` references
+	# expand out `A` references; kinda janky, should use `expandref`
 	[ "${1#A}" != "$1" ] && eval "set -- \$$1 \$2"
 	[ "${2#A}" != "$2" ] && eval "set -- \$1 \$$2"
 
@@ -98,8 +98,9 @@ compare () case $1 in
 		_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
 		_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}
 		set -- "$_tmp1" "$_tmp2"
-
-		compare "$_prefix1" "$_prefix2"
+		expandref "$_prefix1"; _prefix1=$Reply
+		expandref "$_prefix2"
+		compare "$_prefix1" "$Reply"
 		[ $Reply = 0 ] || return 0
 	done
 	compare i$len1 i$len2 ;;

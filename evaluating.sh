@@ -122,10 +122,7 @@ run () {
 			case $1 in
 				s*) Reply=$(printf %.2s "$1") ;;
 				a*) explode-array-at-arg1
-					if [ "${2#A}" != "$2" ] # Expand out resulting array refs
-					then eval "Reply=\$$2"
-					else Reply=$2
-					fi;;
+					expandref "$2" ;;
 				*)  die "unknown argument to $fn: $1"
 			esac ;;
 
