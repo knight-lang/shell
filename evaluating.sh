@@ -13,9 +13,12 @@ EOS
 
 readonly UNIQ_SEP=\`
 run () {
+	set -x
+	echo "{$1}"
 	case $1 in
 		v*) eval "run \$$1"; return ;; # `set -o nounset` will fail if the var isnt valid
 		F?*) eval "run \"\$$1\""; return ;;
+		A*) echo $1; eval "Reply=\$$1"; return ;;
 		[!f]*) Reply="$1"; return ;;
 	esac
 
@@ -40,6 +43,8 @@ run () {
 
 		fn=${1#f}; shift # Fn can be `_fn`
 	esac
+
+	echo "args: $@"
 
 	# Execute functions
 	case $fn in
@@ -138,6 +143,11 @@ run () {
 			i*) to_int "$2"; Reply=i$((${1#?} + Reply)) ;;
 			s*) to_str "$2"; Reply=s${1#?}$Reply ;;
 			a0) to_ary "$2" ;;
+			a*) to_ary "$2"
+				IFS=$ARY_SEP; set -o noglob
+				set -- ${1#*"$ARY_SEP"} ${Reply#*"$ARY_SEP"}
+				unset IFS; set +o noglob
+				new_ary "$@" ;;
 			[aA]*) TODO "$fn for arrays" ;;
 			*)  die "unknown argument to $fn: $1" ;;
 			esac ;;
