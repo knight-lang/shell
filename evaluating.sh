@@ -103,7 +103,7 @@ run () {
 				to_ary "$1"
 				Reply=${Reply%%"$ARY_SEP"*}
 				Reply=i${Reply#?} ;;
-			*)  die "unknown argument to $fn: $1" ;;
+			# *)  die "unknown argument to $fn: $1" ;;
 			esac ;;
 
 		!) # ! (not)
@@ -189,7 +189,7 @@ run () {
 			to_int "$2"
 			Reply=i$((${1#?} % Reply)) ;;
 
-		\^) # ^ (power)
+		^) # ^ (power)
 			case $1 in
 			i*) to_int "$2"; Reply=i$(echo "${1#?} ^ $Reply" | bc) ;; # no exponents in posix
 			a*) to_str "$2"; ary_join "$Reply" "$1"; Reply=s$Reply ;;
@@ -259,7 +259,6 @@ run () {
 					Reply=$Reply$ARY_SEP$1
 					shift
 				done
-				echo $Reply
 				;;
 			*)  die "unknown argument to $fn: $1"
 			esac ;;

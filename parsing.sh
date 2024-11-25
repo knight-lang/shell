@@ -1,12 +1,12 @@
 ## Sets `$Reply` To the amount of arguments the Knight function in `$1` expects. 
-arity () case $1 in
+arity () { case $1 in
 	[PR]) Reply=0 ;;
 	[][\$OEBCQ\!LD,AV\~]) Reply=1 ;;
-	[-+\*/%\^\?\<\>\&\|\;\=W]) Reply=2 ;;
+	[-+\*/%^\?\<\>\&\|\;=W]) Reply=2 ;;
 	[GI]) Reply=3 ;;
 	S) Reply=4 ;;
 	*) die 'unknown function: %s' "$1" ;;
-esac
+esac; }
 
 Line=
 next_expr () {
@@ -47,7 +47,7 @@ next_expr () {
 			Line=${Line#?} ;;
 
 		# Functions
-		[][TFNPRBCQDOLAWVIGSE\$\+\*\/\%\^\<\>\?\&\|\;\~\!\=\,-]*)
+		[][TFNPRBCQDOLAWVIGSE\$+\*/%^\<\>\?\&\|\;\~\!=,-]*)
 			Reply=$(printf %c "$Line")
 
 			case $Reply in

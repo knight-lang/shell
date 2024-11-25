@@ -37,11 +37,11 @@ new_ary () {
 }
 
 ## Expands out array references, putting the result in `$Reply`.
-expandref () if [ "${1#A}" = "$1" ]; then
+expandref () { if [ "${1#A}" = "$1" ]; then
 	Reply=$1
 else
 	eval "Reply=\$$1"
-fi
+fi; }
 
 ## Concatenates a knight array (argument 2) by a string (argument 1), placing
 # the result in `$Reply`.

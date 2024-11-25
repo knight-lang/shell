@@ -1,5 +1,5 @@
 ## Converts its argument to a plain string, storing the result in `$Reply`.
-to_str () case $1 in
+to_str () { case $1 in
 	# For strings and integers, their string repr is just themselves
 	[si]*) Reply=${1#?} ;;
 
@@ -13,10 +13,10 @@ to_str () case $1 in
 
 	# Everything else is an error (eg `BLOCK`s)
 	*) die "unknown type for to_str: $1" ;;
-esac
+esac; }
 
 ## Converts its argument to a plain integer, storing the result in `$Reply`
-to_int () case $1 in
+to_int () { case $1 in
 	# Integers you just strip off the `i`
 	i*) Reply=${1#i} ;;
 
@@ -32,13 +32,13 @@ to_int () case $1 in
 
 	# Everything else is an error (eg `BLOCK`s)
 	*) die "unknown type for to_int: $1" ;;
-esac
+esac; }
 
 ## Returns 0 if its argument is truthy
-to_bool () case $1 in [sFN]|[ia]0) false; esac
+to_bool () { case $1 in [sFN]|[ia]0) false; esac; }
 
 ## Converts its argument into a Knight array, storing the result in `$Reply`
-to_ary () case $1 in
+to_ary () { case $1 in
 	# For arrays, it's just themselves
 	a*) Reply=$1 ;;
 
@@ -61,5 +61,5 @@ to_ary () case $1 in
 		Reply=a${#_rest}$(printf '%s' "$_rest" | sed "s/./$ARY_SEP$_prefix&/g") ;;
 
 	# Everything else is an error (eg `BLOCK`s)
-	*) die "unknown type for $to_ary: $1" ;;
-esac
+	*) die "unknown type for to_ary: $1" ;;
+esac; }

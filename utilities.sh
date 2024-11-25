@@ -1,12 +1,12 @@
 ## Sets `Reply` to `T` or `F` based on the exit status of the last command.
-newbool () if [ $? -ne 0 ]; then
+newbool () { if [ $? -ne 0 ]; then
 	Reply=F
 else
 	Reply=T
-fi
+fi; }
 
 ## Dumps its argument to stdout.
-dump () case $1 in
+dump () { case $1 in
 	T) printf true ;;
 	F) printf false ;;
 	N) printf null ;;
@@ -33,7 +33,7 @@ s/^/"/; s/x$/"/' ;;
 	A*) eval "dump \$$1" ;;
 	[fFv]*) printf '{%s}' "$1" ;;
 	*) die "unknown type for dump: $1" ;;
-esac
+esac; }
 
 ## Returns whether its arguments are equal, ie knight's `?` function
 are_equal () {
@@ -75,7 +75,7 @@ are_equal () {
 
 ## Sets $Reply to `-1`, `0`, or `1` depending on whether the first argument is
 # smaller than, equal to or greater than the second argument.
-compare () case $1 in
+compare () { case $1 in
 	s*) to_str "$2"; if [ "${1#s}" \< "$Reply" ]; then
 			Reply=-1
 		else
@@ -110,4 +110,4 @@ compare () case $1 in
 	done
 	compare i$len1 i$len2 ;;
 	*) die "unknown type for compare: $1" ;;
-esac
+esac; }
