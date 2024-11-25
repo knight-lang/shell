@@ -23,12 +23,10 @@ run () {
 	IFS=$FN_SEP; set -o noglob
 	set -- $1; unset IFS; set +o noglob
 
-	local fn=${1#f}; shift # Fn can be `_fn`
 
 	# Execute arguments for functions that need them executed
-	case $fn in [!B=\&\|WI]) # TODO: is it `!` or `^`?
+	case ${1#f} in [!B=\&\|WI]) # TODO: is it `!` or `^`?
 		# Execute all the arguments
-		set -- "$fn" "$@"
 		while [ $# -gt 1 ]; do
 			run "$2"
 			_tmp=$1$UNIQ_SEP$Reply
@@ -37,9 +35,10 @@ run () {
 		done
 		IFS=$UNIQ_SEP; set -o noglob
 		set -- $1; unset IFS; set +o noglob
-
-		fn=${1#f}; shift # Fn can be `_fn`
 	esac
+
+	fn=${1#f}
+	shift
 
 	# Execute functions
 	case $fn in
