@@ -93,7 +93,7 @@ run () {
 		L) # LENGTH
 			case $1 in
 			s*) Reply=i$(( ${#1} - 1 )) ;; # Have to subtract 1 for prefix
-			a*) echo "$1"; exit ;Reply=a$(());;
+			a*) Reply=${1%%"$ARY_SEP"*}; Reply=i${Reply#?} ;;
 			*)  die "unknown argument to $fn: $1" ;;
 			esac ;;
 
@@ -116,14 +116,13 @@ run () {
 			new_ary "$1" ;;
 
 		\[) # [ (head)
-			run "$1"
 			case $Reply in
 				s*) Reply=s$(printf %c "$Reply") ;;
+		
 				[aA]*) TODO "$fn for arrays" ;;
 			esac ;;
 
 		\]) # ] (tail)
-			run "$1"
 			case $Reply in
 				s*) Reply=s${Reply#s?} ;;
 				[aA]*) TODO "$fn for arrays" ;;

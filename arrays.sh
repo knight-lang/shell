@@ -16,13 +16,8 @@ new_ary () {
 }
 
 alias explode-array-at-arg1='
-_old_IFS=$IFS
-IFS=$ARY_SEP
-set -o noglob
-set -- $1
-shift # delete `aN` prefix
-set +o noglob
-IFS=$_old_IFS
+IFS=$ARY_SEP && set -o noglob
+set -- $1 && set +o noglob && unset IFS
 '
 
 ary_join () {
@@ -31,6 +26,7 @@ ary_join () {
 	shift
 
 	explode-array-at-arg1
+	shift # delete `aLEN` prefix
 
 	for _arg; do
 		to_str "$_arg"

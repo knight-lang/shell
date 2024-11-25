@@ -16,6 +16,7 @@ s/^/"/; s/x$/"/' ;;
 	a*) 
 		printf \[
 		explode-array-at-arg1
+		shift # delte `$@` prefix
 
 		dump "$1"; shift
 		for _arg; do
