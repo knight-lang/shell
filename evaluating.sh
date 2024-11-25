@@ -118,8 +118,7 @@ run () {
 		\[) # [ (head)
 			case $1 in
 				s*) Reply=s$(printf %c "$1") ;;
-				a*) 
-					explode-array-at-arg1
+				a*) explode-array-at-arg1
 					Reply=$2 ;;
 				*)  die "unknown argument to $fn: $1"
 			esac ;;
@@ -127,7 +126,8 @@ run () {
 		\]) # ] (tail)
 			case $1 in
 				s*) Reply=s${1#s?} ;;
-				a*) TODO "$fn for arrays" ;;
+				a*) explode-array-at-arg1
+					shift 2; new_ary "$@" ;;
 				*)  die "unknown argument to $fn: $1"
 			esac ;;
 
@@ -137,6 +137,7 @@ run () {
 			case $1 in
 			i*) to_int "$2"; Reply=i$((${1#?} + Reply)) ;;
 			s*) to_str "$2"; Reply=s${1#?}$Reply ;;
+			a0) to_ary "$2" ;;
 			[aA]*) TODO "$fn for arrays" ;;
 			*)  die "unknown argument to $fn: $1" ;;
 			esac ;;

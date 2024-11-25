@@ -17,8 +17,7 @@ new_ary () {
 
 alias explode-array-at-arg1='
 IFS=$ARY_SEP && set -o noglob
-set -- $1 && set +o noglob && unset IFS
-'
+set -- $1 && set +o noglob && unset IFS'
 
 ary_join () {
 	# We have to have `result` be local because `to_str` will clobber `Reply`.
