@@ -13,12 +13,9 @@ EOS
 
 readonly UNIQ_SEP=\`
 run () {
-	set -x
-	echo "{$1}"
 	case $1 in
 		v*) eval "run \$$1"; return ;; # `set -o nounset` will fail if the var isnt valid
 		F?*) eval "run \"\$$1\""; return ;;
-		A*) echo $1; eval "Reply=\$$1"; return ;;
 		[!f]*) Reply="$1"; return ;;
 	esac
 
@@ -43,8 +40,6 @@ run () {
 
 		fn=${1#f}; shift # Fn can be `_fn`
 	esac
-
-	echo "args: $@"
 
 	# Execute functions
 	case $fn in
@@ -72,8 +67,7 @@ run () {
 
 	# Arity 1
 		B) # BLOCK {args weren't evaluated}
-			Reply=$1
-			return ;;
+			Reply=$1 ;;
 
 		C) # CALL
 			run "$1" ;;
@@ -124,7 +118,10 @@ run () {
 			case $1 in
 				s*) Reply=s$(printf %c "$1") ;;
 				a*) explode-array-at-arg1
-					Reply=$2 ;;
+					if [ "${2#A}" != "$2" ] # Expand out resulting array refs
+					then eval "Reply=\$$2"
+					else Reply=$2
+					fi;;
 				*)  die "unknown argument to $fn: $1"
 			esac ;;
 
@@ -142,13 +139,12 @@ run () {
 			case $1 in
 			i*) to_int "$2"; Reply=i$((${1#?} + Reply)) ;;
 			s*) to_str "$2"; Reply=s${1#?}$Reply ;;
-			a0) to_ary "$2" ;;
+			a0) to_ary "$2";; # TODO: make this not a separate case if we decide on `a0:`
 			a*) to_ary "$2"
 				IFS=$ARY_SEP; set -o noglob
 				set -- ${1#*"$ARY_SEP"} ${Reply#*"$ARY_SEP"}
 				unset IFS; set +o noglob
 				new_ary "$@" ;;
-			[aA]*) TODO "$fn for arrays" ;;
 			*)  die "unknown argument to $fn: $1" ;;
 			esac ;;
 
@@ -157,10 +153,21 @@ run () {
 			Reply=i$((${1#?} - Reply)) ;;
 
 		\*) # * (multiply)
+			to_int "$2" # all three cases happen to use ints for the second num.
 			case $1 in
-			i*) to_int "$2"; Reply=i$((${1#?} + Reply)) ;;
-			s*) TODO "$fn for strings" ;;
-			[aA]*) TODO "$fn for arrays" ;;
+			i*) Reply=i$((${1#?} + Reply)) ;;
+			s*) _tmp=$Reply; Reply=s
+				while [ $((_tmp -= 1)) -ge 0 ]; do
+					Reply=$Reply${1#s}
+				done ;;
+			a*) _tmp=
+				while [ $((Reply -= 1)) -ge 0 ]; do
+					_tmp=$_tmp${_tmp:+$ARY_SEP}${1#*"$ARY_SEP"}
+				done
+				IFS=$ARY_SEP; set -o noglob
+				set -- $_tmp
+				unset IFS; set +o noglob
+				new_ary "$@" ;;
 			*)  die "unknown argument to $fn: $1"
 			esac ;;
 
@@ -175,7 +182,8 @@ run () {
 		^) # ^ (power)
 			case $1 in
 			i*) to_int "$2"; Reply=i$(echo "${1#?} ^ $Reply" | bc) ;; # no exponents in posix
-			[aA]*) TODO "$fn for arrays" ;;
+			a0) Reply= ;; # TODO: is it needed?
+			a*) to_str "$2"; ary_join "$Reply" "$1"; Reply=s$Reply ;;
 			*)  die "unknown argument to $fn: $1"
 			esac ;;
 
@@ -194,28 +202,24 @@ run () {
 
 		\&) # & (and) {args weren't evaluated}
 			run "$1"
-			to_bool "$Reply" && run "$2"
-			return ;;
+			to_bool "$Reply" && run "$2" ;;
 
 		\|) # | (or) {args weren't evaluated}
 			run "$1"
-			to_bool "$Reply" || run "$2"
-			return ;;
+			to_bool "$Reply" || run "$2" ;;
 
 		\;) # ; (then)
 			Reply=$2 ;; # We've already actually executed it
 
 		=) # = (assign) {args weren't evaluated}
 			run "$2"
-			eval "$1=\$Reply"
-			return ;;
+			eval "$1=\$Reply" ;;
 
 		W) # WHILE {args weren't evaluated}
 			while run "$1"; to_bool "$Reply"
 			do run "$2"
 			done
-			Reply=N
-			return ;;
+			Reply=N ;;
 
 
 	# Arity 3
@@ -224,8 +228,7 @@ run () {
 			if to_bool "$Reply"
 			then run "$2"
 			else run "$3"
-			fi
-			return ;;
+			fi ;;
 
 		G) # GET
 			TODO "$fn" ;;
