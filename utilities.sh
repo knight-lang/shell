@@ -24,9 +24,9 @@ s/^/"/; s/x$/"/' ;;
 		shift # delte `$@` prefix
 
 		dump "$1"; shift
-		for _arg; do
+		for arg; do
 			printf ', '
-			dump "$_arg"
+			dump "$arg"
 		done
 		printf \]
 		;;
@@ -56,20 +56,20 @@ are_equal () {
 	# we have two arrays to deal with. lovely :-(
 
 	while [ -n "$1" ] && [ -n "$2" ]; do
-		_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
-		_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}
-		set -- "$_tmp1" "$_tmp2"
+		prefix1="${1%%"$ARY_SEP"*}"; tmp1=${1#"$prefix1"}; tmp1=${tmp1#"$ARY_SEP"}
+		prefix2="${2%%"$ARY_SEP"*}"; tmp2=${2#"$prefix2"}; tmp2=${tmp2#"$ARY_SEP"}
+		set -- "$tmp1" "$tmp2"
 
 		# Hey they're the same, we're good!
-		[ "$_prefix1" = "$_prefix2" ] && continue
+		[ "$prefix1" = "$prefix2" ] && continue
 
 		# Hm, one of them isn't a reference, looks like they're not the same
-		if [ "${_prefix1#A}" = "$_prefix1" ] || [ "${_prefix1#A}" = "$_prefix1" ]; then
+		if [ "${prefix1#A}" = "$prefix1" ] || [ "${prefix1#A}" = "$prefix1" ]; then
 			return 1
 		fi
 
 		# Both are references, test them out
-		are_equal "$_prefix1" "$_prefix2" || return
+		are_equal "$prefix1" "$prefix2" || return
 	done
 }
 
@@ -93,21 +93,21 @@ compare () case $1 in
 	a*) to_ary "$2"
 		set -- "$1" "$Reply"
 
-	_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
-	_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}
-	set -- "$_tmp1" "$_tmp2"
+		prefix1="${1%%"$ARY_SEP"*}"; tmp1=${1#"$prefix1"}; tmp1=${tmp1#"$ARY_SEP"}
+		prefix2="${2%%"$ARY_SEP"*}"; tmp2=${2#"$prefix2"}; tmp2=${tmp2#"$ARY_SEP"}
+		set -- "$tmp1" "$tmp2"
 
-	set -- "$@" "${_prefix1#a}" "${_prefix2#a}"
-	
-	while [ -n "$1" ] && [ -n "$2" ]; do
-		_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
-		_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}
-		set -- "$_tmp1" "$_tmp2" "$3" "$4"
-		expandref "$_prefix1"; _prefix1=$Reply
-		expandref "$_prefix2"
-		compare "$_prefix1" "$Reply"
-		[ $Reply = 0 ] || return 0
-	done
-	compare i$3 i$4 ;;
+		set -- "$@" "${prefix1#a}" "${prefix2#a}"
+		
+		while [ -n "$1" ] && [ -n "$2" ]; do
+			prefix1="${1%%"$ARY_SEP"*}"; tmp1=${1#"$prefix1"}; tmp1=${tmp1#"$ARY_SEP"}
+			prefix2="${2%%"$ARY_SEP"*}"; tmp2=${2#"$prefix2"}; tmp2=${tmp2#"$ARY_SEP"}
+			set -- "$tmp1" "$tmp2" "$3" "$4"
+			expandref "$prefix1"; prefix1=$Reply
+			expandref "$prefix2"
+			compare "$prefix1" "$Reply"
+			[ $Reply = 0 ] || return 0
+		done
+		compare i$3 i$4 ;;
 	*) die "unknown type for compare: $1" ;;
 esac

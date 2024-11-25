@@ -32,14 +32,14 @@ next_expr () {
 
 		# Strings; this have to be handled specially cause of multilined stuff
 		[\'\"]*)
-			_quote=$(printf %c "$Line")
+			quote=$(printf %c "$Line")
 			Line=${Line#?}
-			while [ "${Line%$_quote*}" = "$Line" ]; do
-				IFS= read -r _tmp || die "missing ending $_quote quote."
-				Line=${Line}${NEWLINE}${_tmp}
+			while [ "${Line%$quote*}" = "$Line" ]; do
+				IFS= read -r tmp || die "missing ending $quote quote."
+				Line=$Line$NEWLINE$tmp
 			done
-			Reply=s${Line%%"$_quote"*}
-			Line=${Line#"${Reply#s}$_quote"} ;;
+			Reply=s${Line%%"$quote"*}
+			Line=${Line#"${Reply#s}$quote"} ;;
 
 		# Array literal
 		@*)
@@ -52,8 +52,8 @@ next_expr () {
 
 			case $Reply in
 				[TFNPRBCQDOLAVWIGSE])
-					_tmp=${Line%%[!ABCDEFGHIJKLMNOPQRSTUVWXYZ_]*}
-					Line=${Line#"$_tmp"} ;;
+					tmp=${Line%%[!ABCDEFGHIJKLMNOPQRSTUVWXYZ_]*}
+					Line=${Line#"$tmp"} ;;
 				*)
 					Line=${Line#?}
 			esac
@@ -78,7 +78,7 @@ parse_fn () {
 
 		# Expression wasn't an ast, just assign it 
 		if [ "${Reply#f}" = "$Reply" ]; then
-			set -- "$1${FN_SEP}$Reply" $(( $2 - 1 ))
+			set -- "$1$FN_SEP$Reply" $(( $2 - 1 ))
 		else
 			# Expression was a function, we have to get a refernece to it
 			eval "F$((Next_Fn_Ref_Idx += 1))=\$Reply"

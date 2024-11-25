@@ -23,16 +23,17 @@ Next_Ary_Ref_Idx=0
 new_ary () {
 	Reply=a$#
 
-	for _arg; do
+	for arg
+	do
 		# If an argument is a non-empty array, then create a reference for it and
-		# update `_arg`.
-		if [ "${_arg#a}" != "$_arg" ] && ! [ "$_arg" = a0 ]; then
-			eval "A$((Next_Ary_Ref_Idx += 1))=\$_arg"
-			_arg=A$Next_Ary_Ref_Idx
+		# update `arg`.
+		if [ "${arg#a}" != "$arg" ] && ! [ "$arg" = a0 ]; then
+			eval "A$((Next_Ary_Ref_Idx += 1))=\$arg"
+			arg=A$Next_Ary_Ref_Idx
 		fi
 
 		# Add the element to the end of the `$Reply` array.
-		Reply=$Reply$ARY_SEP$_arg
+		Reply=$Reply$ARY_SEP$arg
 	done
 }
 
@@ -50,25 +51,25 @@ ary_join () {
 	[ "$2" = a0 ] && { Reply=; return; }
 
 	# Set the result to start as an empty string
-	_tmp=${2#*"$ARY_SEP"}
-	set -- "$1" "$_tmp$ARY_SEP" ''
+	tmp=${2#*"$ARY_SEP"}
+	set -- "$1" "$tmp$ARY_SEP" ''
 
 	# While there's still something left to join
 	while [ -n "$2" ]; do
 		# Get the element to join
-		_element=${2%%"$ARY_SEP"*}
+		element=${2%%"$ARY_SEP"*}
 
-		# Expands `_element` out if it's an array
-		expandref "$_element"
+		# Expands `element` out if it's an array
+		expandref "$element"
 
 		# Convert the expanded element
 		to_str "$Reply"
 
 		# Delete the first element out
-		_rest=${2#*"$ARY_SEP"}
+		rest=${2#*"$ARY_SEP"}
 
 		# Update the list of arguments
-		set -- "$1" "$_rest" "$3$1$Reply"	
+		set -- "$1" "$rest" "$3$1$Reply"	
 	done
 
 	# Since we had an extra `$ARY_SEP` when setting up the args, we need to

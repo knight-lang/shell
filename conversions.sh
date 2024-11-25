@@ -51,14 +51,14 @@ to_ary () case $1 in
 	# For integers and non-empty strings, you simply iterate over each character,
 	# putting theminto a list
 	[si]*)
-		_prefix=$(printf %c "$1") # Get the prefix
-		_rest=${1#?}              # Delete the prefix
+		prefix=$(printf %c "$1") # Get the prefix
+		rest=${1#?}              # Delete the prefix
 
 		# Handle negative numbers
-		if [ "${1#i-}" != "$1" ]; then _prefix=i-; _rest=${_rest#?}; fi
+		if [ "${1#i-}" != "$1" ]; then prefix=i-; rest=${rest#?}; fi
 
 		# Construct the reply.
-		Reply=a${#_rest}$(printf '%s' "$_rest" | sed "s/./$ARY_SEP$_prefix&/g") ;;
+		Reply=a${#rest}$(printf '%s' "$rest" | sed "s/./$ARY_SEP$prefix&/g") ;;
 
 	# Everything else is an error (eg `BLOCK`s)
 	*) die "unknown type for to_ary: $1" ;;

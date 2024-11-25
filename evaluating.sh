@@ -29,9 +29,9 @@ run () {
 		# Execute all the arguments
 		while [ $# -gt 1 ]; do
 			run "$2"
-			_tmp=$1$UNIQ_SEP$Reply
+			tmp=$1$UNIQ_SEP$Reply
 			shift 2
-			set -- "$_tmp" "$@"
+			set -- "$tmp" "$@"
 		done
 		IFS=$UNIQ_SEP; set -o noglob
 		set -- $1; unset IFS; set +o noglob
@@ -60,8 +60,8 @@ run () {
 		P) # PROMPT
 			read -r Reply || { Reply=N; return; }
 			# This could be optimized
-			_r=$(printf \\r)
-			while _tmp=${Reply%"$_r"}; [ ${#_tmp} -ne ${#Reply} ]; do
+			r=$(printf \\r)
+			while tmp=${Reply%"$r"}; [ ${#tmp} -ne ${#Reply} ]; do
 				Reply=${Reply%?}
 			done
 			Reply=s$Reply ;;
@@ -164,17 +164,17 @@ run () {
 			to_int "$2" # all three cases happen to use ints for the second num.
 			case $1 in
 			i*) Reply=i$((${1#?} * Reply)) ;;
-			s*) _tmp=$Reply; Reply=s
-				while [ $((_tmp -= 1)) -ge 0 ]; do
+			s*) tmp=$Reply; Reply=s
+				while [ $((tmp -= 1)) -ge 0 ]; do
 					Reply=$Reply${1#s}
 				done ;;
 			a0) Reply=a0 ;;
-			a*) _tmp=
+			a*) tmp=
 				while [ $((Reply -= 1)) -ge 0 ]; do
-					_tmp=$_tmp${_tmp:+$ARY_SEP}${1#*"$ARY_SEP"}
+					tmp=$tmp${tmp:+$ARY_SEP}${1#*"$ARY_SEP"}
 				done
 				IFS=$ARY_SEP; set -o noglob
-				set -- $_tmp
+				set -- $tmp
 				unset IFS; set +o noglob
 				new_ary "$@" ;;
 			*)  die "unknown argument to $fn: $1"
