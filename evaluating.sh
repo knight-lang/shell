@@ -164,6 +164,7 @@ run () {
 				while [ $((_tmp -= 1)) -ge 0 ]; do
 					Reply=$Reply${1#s}
 				done ;;
+			a0) Reply=a0 ;;
 			a*) _tmp=
 				while [ $((Reply -= 1)) -ge 0 ]; do
 					_tmp=$_tmp${_tmp:+$ARY_SEP}${1#*"$ARY_SEP"}
@@ -183,10 +184,9 @@ run () {
 			to_int "$2"
 			Reply=i$((${1#?} % Reply)) ;;
 
-		^) # ^ (power)
+		\^) # ^ (power)
 			case $1 in
 			i*) to_int "$2"; Reply=i$(echo "${1#?} ^ $Reply" | bc) ;; # no exponents in posix
-			a0) Reply= ;; # TODO: is it needed?
 			a*) to_str "$2"; ary_join "$Reply" "$1"; Reply=s$Reply ;;
 			*)  die "unknown argument to $fn: $1"
 			esac ;;

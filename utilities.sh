@@ -86,6 +86,7 @@ compare () case $1 in
 			Reply=$?
 		fi ;;
 	a*) to_ary "$2"
+		set -- "$1" "$Reply"
 
 	_prefix1="${1%%"$ARY_SEP"*}"; _tmp1=${1#"$_prefix1"}; _tmp1=${_tmp1#"$ARY_SEP"}
 	_prefix2="${2%%"$ARY_SEP"*}"; _tmp2=${2#"$_prefix2"}; _tmp2=${_tmp2#"$ARY_SEP"}

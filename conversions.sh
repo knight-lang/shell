@@ -12,11 +12,13 @@ esac
 
 ## Converts its argument to an integer, storing the result in $Reply
 to_int () case $1 in
-	s*) case ${1%s} in
-		-*[!0-9]*) TODO ;;
-		[!-]*[!0-9]*) TODO ;;
-		*) Reply=${1#s} ;; # TODO: there's no way this works
-		esac ;;
+	s*) # TODO LOL
+		Reply=$(perl -e 'print 0+$ARGV[0];' -- "${1#s}") ;;
+# case ${1#s} in
+# 		-*[!0-9]*) TODO ;;
+# 		[!-]*[!0-9]*) TODO ;;
+# 		*) Reply=${1#s} ;; # TODO: there's no way this works
+		# esac ;;
 	[FN]) Reply=0 ;;
 	T)    Reply=1 ;;
 	i*)   Reply=${1#i} ;;
