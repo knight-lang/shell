@@ -93,6 +93,10 @@ run () {
 			case $1 in
 			s*) Reply=i$(( ${#1} - 1 )) ;; # Have to subtract 1 for prefix
 			a*) Reply=${1%%"$ARY_SEP"*}; Reply=i${Reply#?} ;;
+			*)
+				to_ary "$1"
+				Reply=${Reply%%"$ARY_SEP"*}
+				Reply=i${Reply#?} ;;
 			*)  die "unknown argument to $fn: $1" ;;
 			esac ;;
 
