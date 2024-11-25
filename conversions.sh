@@ -15,7 +15,7 @@ to_int () case $1 in
 	s*) case ${1%s} in
 		-*[!0-9]*) TODO ;;
 		[!-]*[!0-9]*) TODO ;;
-		*) Reply=i${1%s} ;; # TODO: there's no way this works
+		*) Reply=${1#s} ;; # TODO: there's no way this works
 		esac ;;
 	[FN]) Reply=0 ;;
 	T)    Reply=1 ;;
@@ -34,13 +34,11 @@ to_bool () case $1 in [sFN]|[ia]0) false;; [fFv]*) run "$1"; to_bool "$Reply"; e
 to_ary () case $1 in
 	[sFN]) Reply=a0 ;; # Note that we handle the empty string case here
 	T) Reply=a1:T ;;
-	i*) _int=${1#i}
-		_sign=
-		[[ if ]]
-	s*) _str=${1#s}
+	[si]*) _str=${1#?}
+		_kind=$(printf %c "$1")
 		Reply=a${#_str}
 		while [ -n "$_str" ]; do
-			Reply=$Reply${ARY_SEP}s$(printf %c "$_str")
+			Reply=$Reply${ARY_SEP}$_kind$(printf %c "$_str")
 			_str=${_str#?}
 		done ;;
 	A*)    eval "to_ary \$$1" ;;
