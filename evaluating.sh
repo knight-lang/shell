@@ -232,12 +232,37 @@ run () {
 			fi ;;
 
 		G) # GET
-			TODO "$fn" ;;
+			local start len
+			to_int "$2"; start=$Reply
+			to_int "$3"; len=$Reply
+			case $1 in
+			s*) [ "$len" = 0 ] && { Reply=s; return; }
+				
+				;;
+			a*)
+				[ "$len" = 0 ] && { Reply=a0; return; }
 
+				IFS=$ARY_SEP; set -o noglob
+				set -- $1; unset IFS; set +o noglob
+				shift $((start + 1)) # `+1` to get rid of the length
+
+				Reply=a$len
+				while [ $((len -= 1)) -ge 0 ]; do
+					Reply=$Reply$ARY_SEP$1
+					shift
+				done
+				echo $Reply
+				;;
+			*)  die "unknown argument to $fn: $1"
+			esac ;;
 
 	# Arity 4
 		S) # SET
-			TODO "$fn" ;;
+			case $1 in
+			s*) ;;
+			a*) ;;
+			*)  die "unknown argument to $fn: $1"
+			esac ;;
 
 		*) die 'unknown function: %s' "$1" ;;
 	esac
