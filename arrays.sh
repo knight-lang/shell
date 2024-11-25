@@ -58,8 +58,11 @@ ary_join () {
 		# Get the element to join
 		_element=${2%%"$ARY_SEP"*}
 
-		# Convert it to a string
-		to_str "$_element"
+		# Expands `_element` out if it's an array
+		expandref "$_element"
+
+		# Convert the expanded element
+		to_str "$Reply"
 
 		# Delete the first element out
 		_rest=${2#*"$ARY_SEP"}

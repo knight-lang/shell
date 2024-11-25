@@ -35,7 +35,7 @@ Line=
 next_expr () {
 	# Strip leading whitespace and comments
 	while
-		Line=$(printf %s "$Line" | sed 's/^[[:blank:]:(){}]*//; /^#/d')
+		Line=$(printf %s "$Line" | sed 's/^[[:space:]:(){}]*//; /^#/d')
 		[ -z "$Line" ]
 	do
 		IFS= read -r Line || return

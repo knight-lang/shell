@@ -36,10 +36,10 @@ die () {
 	fmt=$1
 	shift
 	printf "%s: $fmt\\n" "$SCRIPT_NAME" "$@"
-	exit 1
+	exit 121
 }
 
-TODO () { die "TODO: $*"; }
+TODO () { echo "TODO: $*"; exit 1; }
 
 
 KNIGHT_DIR=$(dirname "$0")

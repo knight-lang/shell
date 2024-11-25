@@ -239,7 +239,7 @@ run () {
 			to_int "$3"; len=$Reply
 			case $1 in
 			s*) [ "$len" = 0 ] && { Reply=s; return; }
-				
+				TODO "!"
 				;;
 			a*)
 				[ "$len" = 0 ] && { Reply=a0; return; }
@@ -264,7 +264,9 @@ run () {
 			s*) ;;
 			a*) ;;
 			*)  die "unknown argument to $fn: $1"
-			esac ;;
+			esac 
+			TODO "!"
+			;;
 
 		*) die 'unknown function: %s' "$1" ;;
 	esac

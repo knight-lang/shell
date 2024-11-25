@@ -1,54 +1,65 @@
-## Converts its argument to a string, storing the result in $Reply
+## Converts its argument to a plain string, storing the result in `$Reply`.
 to_str () case $1 in
+	# For strings and integers, their string repr is just themselves
 	[si]*) Reply=${1#?} ;;
-	T)     Reply=true ;;
-	F)     Reply=false ;;
-	N)     Reply= ;;
-	A*)    eval "to_str \$$1" ;;
-	a*)    ary_join "$NEWLINE" "$1" ;;
-	[fFv]*) run "$1"; to_str "$Reply" ;;
+
+	# TRUE, FALSE, and NULL have literal representations
+	T) Reply=true ;;
+	F) Reply=false ;;
+	N) Reply= ;;
+
+	# Arrays need to be joined by newlines
+	a*) ary_join "$NEWLINE" "$1" ;;
+
+	# Everything else is an error (eg `BLOCK`s)
 	*) die "unknown type for to_str: $1" ;;
 esac
 
-## Converts its argument to an integer, storing the result in $Reply
+## Converts its argument to a plain integer, storing the result in `$Reply`
 to_int () case $1 in
+	# Integers you just strip off the `i`
+	i*) Reply=${1#i} ;;
+
 	s*) # TODO LOL
 		Reply=$(perl -e 'print 0+$ARGV[0];' -- "${1#s}") ;;
-# case ${1#s} in
-# 		-*[!0-9]*) TODO ;;
-# 		[!-]*[!0-9]*) TODO ;;
-# 		*) Reply=${1#s} ;; # TODO: there's no way this works
-		# esac ;;
+
+	# TRUE, FALSE, and NULL have constant ints
 	[FN]) Reply=0 ;;
 	T)    Reply=1 ;;
-	i*)   Reply=${1#i} ;;
-	A*)   eval "to_int \$$1" ;;
-	a*)   Reply=${1#a}
-	      Reply=${Reply%%"$ARY_SEP"*} ;;
-	[fFv]*) run "$1"; to_int "$Reply" ;;
+
+	# Arrays' length is the first element, after the leading `a`
+	a*) Reply=${1#a} Reply=${Reply%%"$ARY_SEP"*} ;;
+
+	# Everything else is an error (eg `BLOCK`s)
 	*) die "unknown type for to_int: $1" ;;
 esac
 
 ## Returns 0 if its argument is truthy
-to_bool () case $1 in [sFN]|[ia]0) false;; [fFv]*) run "$1"; to_bool "$Reply"; esac
+to_bool () case $1 in [sFN]|[ia]0) false; esac
 
-# Converts its argument to an array, storing the result in $Reply
+## Converts its argument into a Knight array, storing the result in `$Reply`
 to_ary () case $1 in
-	[sFN]) Reply=a0 ;; # Note that we handle the empty string case here
+	# For arrays, it's just themselves
+	a*) Reply=$1 ;;
+
+	# For `FALSE`, `NULL`, and empty strings, they're just empty arrays
+	[sFN]) Reply=a0 ;;
+
+	# True is just an array of itself
 	T) Reply=a1:T ;;
-	[si]*) _str=${1#?}
-		_kind=$(printf %c "$1")
-		if [ "${1#i-}" != "$1" ]; then
-			_kind=i-
-			_str=${_str#?}
-		fi
-		Reply=a${#_str}
-		while [ -n "$_str" ]; do
-			Reply=$Reply${ARY_SEP}$_kind$(printf %c "$_str")
-			_str=${_str#?}
-		done ;;
-	A*)    eval "to_ary \$$1" ;;
-	a*)    Reply=$1 ;;
-	[fFv]*) run "$1"; to_ary "$Reply" ;;
+
+	# For integers and non-empty strings, you simply iterate over each character,
+	# putting theminto a list
+	[si]*)
+		_prefix=$(printf %c "$1") # Get the prefix
+		_rest=${1#?}              # Delete the prefix
+
+		# Handle negative numbers
+		if [ "${1#i-}" != "$1" ]; then _prefix=i-; _rest=${_rest#?}; fi
+
+		# Construct the reply.
+		Reply=a${#_rest}$(printf '%s' "$_rest" | sed "s/./$ARY_SEP$_prefix&/g") ;;
+
+	# Everything else is an error (eg `BLOCK`s)
 	*) die "unknown type for $to_ary: $1" ;;
 esac
