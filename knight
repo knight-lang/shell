@@ -5,8 +5,7 @@
 ################################################################################
 
 ## Set options
-set -o nounset
-set -o noglob
+set -o nounset -o noglob
 
 # Naming scheme:
 # READ_ONLY
@@ -24,19 +23,12 @@ set -o noglob
 # F(\d+)                   - fn ref, `eval`ing it will give you the original AST
 ##
 
-readonly ARY_SEP=:
-readonly FN_SEP=\( # "$(printf %d \'29)"; needs to be diff from ARY_SEP
+readonly ARY_SEP=$(printf \\001)
+readonly FN_SEP=$(printf \\002) 
+readonly EXEC_SEP=$(printf \\003)
 readonly SCRIPT_NAME=${0##*/}
 readonly NEWLINE='
 '
-
-## Print out a message and exit the program
-die () {
-	fmt=$1
-	shift
-	printf "%s: $fmt\\n" "$SCRIPT_NAME" "$@"
-	exit 121
-}
 
 TODO () { echo "TODO: $*"; exit 1; }
 

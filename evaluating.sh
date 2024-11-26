@@ -13,7 +13,6 @@ EOS
 
 seed=
 
-readonly UNIQ_SEP=\`
 run () {
 	case $1 in
 		v*) eval "run \$$1"; return ;; # `set -o nounset` will fail if the var isnt valid
@@ -31,11 +30,11 @@ run () {
 		# Execute all the arguments
 		while [ $# -gt 1 ]; do
 			run "$2"
-			tmp=$1$UNIQ_SEP$Reply
+			tmp=$1$EXEC_SEP$Reply
 			shift 2
 			set -- "$tmp" "$@"
 		done
-		IFS=$UNIQ_SEP; set -o noglob
+		IFS=$EXEC_SEP; set -o noglob
 		set -- $1; unset IFS; set +o noglob
 	esac
 
@@ -242,14 +241,25 @@ run () {
 			fi ;;
 
 		G) # GET
-			local start len
-			to_int "$2"; start=$Reply
-			to_int "$3"; len=$Reply
+			to_int "$2"; set -- "$1" $Reply "$3"
+			to_int "$3"; set -- "$1" $2 $Reply
 			case $1 in
-			s*) [ "$len" = 0 ] && { Reply=s; return; }
-				TODO "!"
-				;;
+			s*) #[ "$1" = 0 ] && { Reply=s; return; }
+				# Is there a faster/better way to do this?
+				set -- "${1#s}" $2 $3
+
+				# Delete prefix
+				while [ "$2" -ne 0 ]; do set -- "${1#?}" $(($2-1)) $3; done
+
+				# Get remainder of the string
+				set -- "$1" "" $3
+				while [ ${#2} -ne $3 ]; do
+					_tmp=$(printf %c "$1")
+					set -- "${1#?}" "$2$_tmp" $3
+				done
+				Reply=s$2 ;;
 			a*)
+				local len=$3 start=$2
 				[ "$len" = 0 ] && { Reply=a0; return; }
 
 				IFS=$ARY_SEP; set -o noglob

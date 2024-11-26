@@ -1,3 +1,11 @@
+## Print out a message and exit the program
+die () {
+	fmt=$1
+	shift
+	printf "%s: $fmt\\n" "$SCRIPT_NAME" "$@"
+	exit 121
+}
+
 ## Sets `Reply` to `T` or `F` based on the exit status of the last command.
 newbool () if [ $? -ne 0 ]; then
 	Reply=F
