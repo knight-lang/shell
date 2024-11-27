@@ -1,17 +1,15 @@
 ## Evaluates the first arg as a knight program, putting the result in $Reply.
 eval_kn () {
-	if [ $# = 0 ]
-	then next_expr
-	else next_expr <<EOS
-$1
-EOS
+	if [ $# = 0 ]; then
+		next_expr
+	else
+		next_expr <<-EOS
+			$1
+		EOS
 	fi || die 'no program given'
 
 	run "$Reply"
 }
-
-# seed is used in `RANDOM`.
-seed=
 
 ## Runs a Knight value.
 run () {
@@ -79,15 +77,15 @@ run () {
 			read -r Reply || { Reply=N; return; }
 			# This could be optimized
 			r=$(printf \\r)
-			while tmp=${Reply%"$r"}; [ ${#tmp} -ne ${#Reply} ]
-			do Reply=${Reply%?}
+			while tmp=${Reply%"$r"}; [ ${#tmp} -ne ${#Reply} ]; do
+				Reply=${Reply%?}
 			done
 			Reply=s$Reply ;;
 
 		R) # RANDOM
 			# Posix shells don't have random themselves, so we have
 			# to dip into AWK.
-			Reply=i$(awk "BEGIN {
+			Reply=i$(echo rand "BEGIN {
 				srand($seed)
 				print int(rand() * 4294967295)
 				exit
@@ -121,7 +119,7 @@ run () {
 		L) # LENGTH
 			case $1 in
 			s*) Reply=i$(( ${#1} - 1 )) ;; # -1 b/c of prefix
-			a*) Reply=${1%%"$ARY_SEP"*}; Reply=i${Reply#?} ;;
+			a*) Reply=${1%%$ARY_SEP*} Reply=i${Reply#?} ;;
 			*) # Support Knight 2.0.1 behaviour
 				to_ary "$1"
 				Reply=${Reply%%$ARY_SEP*}
@@ -186,17 +184,18 @@ run () {
 
 			case $1 in
 			i*) Reply=i$((${1#?} * Reply)) ;;
-			s*) tmp=$Reply; Reply=s
-				while [ $((tmp -= 1)) -ge 0 ]
-				do Reply=$Reply${1#s}
+			s*) tmp=$Reply Reply=s
+				while [ $((tmp -= 1)) -ge 0 ]; do
+					Reply=$Reply${1#s}
 				done ;;
 			a0) Reply=a0 ;;
-			a*) tmp=
-				while [ $((Reply -= 1)) -ge 0 ]
-				do tmp=$tmp${tmp:+$ARY_SEP}${1#*$ARY_SEP}
-				done
-				IFS=$ARY_SEP; set -- $tmp; unset IFS
-				new_ary "$@" ;;
+			a*)
+				amount=$Reply
+				Reply=${1#?}
+				Reply=a$((${Reply%%$ARY_SEP*} * amount))
+				while [ $((amount -= 1)) -ge 0 ]; do
+					Reply=$Reply$ARY_SEP${1#*$ARY_SEP}
+				done ;;
 			*)  die "unknown argument to $fn: %s" "$1"
 			esac ;;
 
@@ -210,7 +209,8 @@ run () {
 
 		^) # ^ (power)
 			case $1 in
-			i*) to_int "$2"; Reply=i$(echo "${1#?} ^ $Reply" | bc) ;; # no exponents in posix
+			# (No exponents in sh, so we gotta use BC.)
+			i*) to_int "$2"; Reply=i$(echo ${1#i} \^ $Reply | bc) ;;
 			a*) to_str "$2"; ary_join "$Reply" "$1"; Reply=s$Reply ;;
 			*)  die "unknown argument to $fn: %s" "$1"
 			esac ;;

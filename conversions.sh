@@ -28,7 +28,7 @@ to_int () case $1 in
 	T)    Reply=1 ;;
 
 	# Arrays' length is the first element, after the leading `a`
-	a*) Reply=${1%%"$ARY_SEP"*}; Reply=${Reply#a} ;;
+	a*) Reply=${1%%$ARY_SEP*} Reply=${Reply#a} ;;
 
 	# Everything else is an error (eg `BLOCK`s)
 	*) die 'unknown type for to_int: %s' "$1" ;;
@@ -55,7 +55,7 @@ to_ary () case $1 in
 		rest=${1#?}              # Delete the prefix
 
 		# Handle negative numbers
-		if [ "${1#i-}" != "$1" ]; then prefix=i-; rest=${rest#?}; fi
+		[ "${1#i-}" != "$1" ] && prefix=i- rest=${rest#?}
 
 		# Construct the reply.
 		Reply=a${#rest}$(printf '%s' "$rest" | \

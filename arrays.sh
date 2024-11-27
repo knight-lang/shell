@@ -26,8 +26,7 @@ Next_Ary_Ref_Idx=0
 new_ary () {
 	Reply=a$#
 
-	for arg
-	do
+	for arg; do
 		# If an argument is a non-empty array, then create a reference
 		# for it and update `arg`.
 		if [ "${arg#a}" != "$arg" ] && ! [ "$arg" = a0 ]; then
@@ -65,6 +64,7 @@ ary_join () {
 
 	# While there's still something left to join, keep joining
 	while [ -n "$2" ]; do
+		echo "{$@}"
 		# Expands the first out if it's an array, else keep it the same.
 		expandref "${2%%$ARY_SEP*}"
 
@@ -72,7 +72,7 @@ ary_join () {
 		to_str "$Reply"
 
 		# Update the list of arguments
-		set -- "$1" "${2#*ARY_SEP}" "$3$1$Reply"	
+		set -- "$1" "${2#*$ARY_SEP}" "$3$1$Reply"	
 	done
 
 	# Since we had an extra `$ARY_SEP` when setting up the args, we need to

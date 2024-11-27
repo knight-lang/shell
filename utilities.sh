@@ -71,13 +71,13 @@ are_equal () {
 		return 1
 	fi
 
-	left_len=${1%%"$ARY_SEP"*}; left_len=${left_len#a}
-	right_len=${2%%"$ARY_SEP"*}; right_len=${right_len#a}
+	left_len=${1%%$ARY_SEP*} left_len=${left_len#a}
+	right_len=${2%%$ARY_SEP*} right_len=${right_len#a}
 
 	[ "$left_len" -ne "$right_len" ] && return 1
 
-	tmp1=${1#"$ARY_SEP"*}
-	tmp2=${2#"$ARY_SEP"*}
+	tmp1=${1#$ARY_SEP*}
+	tmp2=${2#$ARY_SEP*}
 	set -- "$tmp1" "$tmp2"
 
 	# They're both arrays. Given how we've checked for direct equality, the
@@ -85,13 +85,13 @@ are_equal () {
 	# `set -- $1``, as we have two arrays to deal with. lovely :-(
 	while [ -n "$1" ] && [ -n "$2" ]; do
 		# Fetch the first elements out of the arrays
-		left="${1%%"$ARY_SEP"*}"
+		left="${1%%$ARY_SEP*}"
 		tmp1=${1#"$left"}
-		tmp1=${tmp1#"$ARY_SEP"}
+		tmp1=${tmp1#$ARY_SEP}
 
-		right="${2%%"$ARY_SEP"*}"
+		right="${2%%$ARY_SEP*}"
 		tmp2=${2#"$right"}
-		tmp2=${tmp2#"$ARY_SEP"}
+		tmp2=${tmp2#$ARY_SEP}
 
 		# Remove the elements from the arrays
 		set -- "$tmp1" "$tmp2"
@@ -119,15 +119,15 @@ compare () case $1 in
 		to_ary "$2"
 		set -- "$1" "$Reply"
 
-		prefix1="${1%%"$ARY_SEP"*}"; tmp1=${1#"$prefix1"}; tmp1=${tmp1#"$ARY_SEP"}
-		prefix2="${2%%"$ARY_SEP"*}"; tmp2=${2#"$prefix2"}; tmp2=${tmp2#"$ARY_SEP"}
+		prefix1="${1%%$ARY_SEP*}" tmp1=${1#"$prefix1"} tmp1=${tmp1#$ARY_SEP}
+		prefix2="${2%%$ARY_SEP*}" tmp2=${2#"$prefix2"} tmp2=${tmp2#$ARY_SEP}
 		set -- "$tmp1" "$tmp2"
 
 		set -- "$@" "${prefix1#a}" "${prefix2#a}"
 		
 		while [ -n "$1" ] && [ -n "$2" ]; do
-			prefix1="${1%%"$ARY_SEP"*}"; tmp1=${1#"$prefix1"}; tmp1=${tmp1#"$ARY_SEP"}
-			prefix2="${2%%"$ARY_SEP"*}"; tmp2=${2#"$prefix2"}; tmp2=${tmp2#"$ARY_SEP"}
+			prefix1="${1%%$ARY_SEP*}" tmp1=${1#"$prefix1"} tmp1=${tmp1#$ARY_SEP}
+			prefix2="${2%%$ARY_SEP*}" tmp2=${2#"$prefix2"} tmp2=${tmp2#$ARY_SEP}
 			set -- "$tmp1" "$tmp2" "$3" "$4"
 			expandref "$prefix1"; prefix1=$Reply
 			expandref "$prefix2"
