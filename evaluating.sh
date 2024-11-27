@@ -10,9 +10,8 @@ EOS
 	run "$Reply"
 }
 
-# seed is sued in `RANDOM`.
+# seed is used in `RANDOM`.
 seed=
-
 
 ## Runs a Knight value.
 run () {
@@ -53,7 +52,9 @@ run () {
 		IFS=$EXEC_SEP; set -- $1; unset IFS
 	esac
 
-	## Set the function name
+	## Set the function name. Mainly used for error messages, and it just so
+	# happens that it's never clobbered (as it's always used before calling
+	# a function that'll eventually call `run`.)
 	fn=${1#f}
 	shift
 
@@ -78,13 +79,19 @@ run () {
 			read -r Reply || { Reply=N; return; }
 			# This could be optimized
 			r=$(printf \\r)
-			while tmp=${Reply%"$r"}; [ ${#tmp} -ne ${#Reply} ]; do
-				Reply=${Reply%?}
+			while tmp=${Reply%"$r"}; [ ${#tmp} -ne ${#Reply} ]
+			do Reply=${Reply%?}
 			done
 			Reply=s$Reply ;;
 
 		R) # RANDOM
-			Reply=i$(awk "BEGIN{ srand($seed); print int(rand() * 4294967295); exit }")
+			# Posix shells don't have random themselves, so we have
+			# to dip into AWK.
+			Reply=i$(awk "BEGIN {
+				srand($seed)
+				print int(rand() * 4294967295)
+				exit
+			}")
 			seed=${Reply#i};;
 
 
@@ -101,26 +108,24 @@ run () {
 
 		D) # DUMP
 			dump "$1"
-			Reply="$1" ;;
+			Reply=$1 ;;
 
 		O) # OUTPUT
 			to_str "$1"
-			if [ "${Reply%\\}" = "$Reply" ]; then
-				printf '%s\n' "$Reply"
-			else
-				printf '%s' "${Reply%?}"
-			fi
+			case $Reply in
+			*\\) printf '%s\n' "$Reply" ;;
+			*)   printf '%s' "${Reply%?}" ;;
+			esac
 			Reply=N ;;
 
 		L) # LENGTH
 			case $1 in
-			s*) Reply=i$(( ${#1} - 1 )) ;; # Have to subtract 1 for prefix
+			s*) Reply=i$(( ${#1} - 1 )) ;; # -1 b/c of prefix
 			a*) Reply=${1%%"$ARY_SEP"*}; Reply=i${Reply#?} ;;
-			*)
+			*) # Support Knight 2.0.1 behaviour
 				to_ary "$1"
-				Reply=${Reply%%"$ARY_SEP"*}
+				Reply=${Reply%%$ARY_SEP*}
 				Reply=i${Reply#?} ;;
-			# *)  die "unknown argument to $fn: $1" ;;
 			esac ;;
 
 		!) # ! (not)
@@ -129,13 +134,13 @@ run () {
 
 		\~) # ~ (negate)
 			to_int "$1"
-			Reply=i$(( - Reply )) ;;
+			Reply=i$(( -Reply )) ;;
 
 		A) # ASCII
 			case $1 in
-			s*) Reply=i$(printf %d \'"$1") ;;
-			i*) TODO ;; #printf '%b\n' '\060' octal ew
-			*)  die "unknown argument to $fn: $1" ;;
+			s*) Reply=i$(printf %d \'"${1#?}") ;;
+			i*) Reply=s$(printf %b \\"$(printf %o ${1#?})") ;;
+			*)  die "unknown argument to $fn: %s" "$1" ;;
 			esac ;;
 
 		,) # , (box)
@@ -146,7 +151,7 @@ run () {
 				s*) Reply=$(printf %.2s "$1") ;;
 				a*) IFS=$ARY_SEP; set -- $1; unset IFS;
 					expandref "$2" ;;
-				*)  die "unknown argument to $fn: $1"
+				*)  die "unknown argument to $fn: %s" "$1"
 			esac ;;
 
 		\]) # ] (tail)
@@ -154,7 +159,7 @@ run () {
 				s*) Reply=s${1#s?} ;;
 				a*) IFS=$ARY_SEP; set -- $1; unset IFS;
 					shift 2; new_ary "$@" ;;
-				*)  die "unknown argument to $fn: $1"
+				*)  die "unknown argument to $fn: %s" "$1"
 			esac ;;
 
 
@@ -163,13 +168,13 @@ run () {
 			case $1 in
 			i*) to_int "$2"; Reply=i$((${1#?} + Reply)) ;;
 			s*) to_str "$2"; Reply=s${1#?}$Reply ;;
-			a0) to_ary "$2";; # TODO: make this not a separate case if we decide on `a0:`
+			a0) to_ary "$2" ;;
 			a*) to_ary "$2"
 				IFS=$ARY_SEP
-				set -- ${1#*"$ARY_SEP"} ${Reply#*"$ARY_SEP"}
+				set -- ${1#*$ARY_SEP} ${Reply#*$ARY_SEP}
 				unset IFS
 				new_ary "$@" ;;
-			*)  die "unknown argument to $fn: $1" ;;
+			*)  die "unknown argument to $fn: %s" "$1" ;;
 			esac ;;
 
 		-) # - (subtract)
@@ -177,21 +182,22 @@ run () {
 			Reply=i$((${1#?} - Reply)) ;;
 
 		\*) # * (multiply)
-			to_int "$2" # all three cases happen to use ints for the second num.
+			to_int "$2" # all 3 cases happen to use ints lol.
+
 			case $1 in
 			i*) Reply=i$((${1#?} * Reply)) ;;
 			s*) tmp=$Reply; Reply=s
-				while [ $((tmp -= 1)) -ge 0 ]; do
-					Reply=$Reply${1#s}
+				while [ $((tmp -= 1)) -ge 0 ]
+				do Reply=$Reply${1#s}
 				done ;;
 			a0) Reply=a0 ;;
 			a*) tmp=
-				while [ $((Reply -= 1)) -ge 0 ]; do
-					tmp=$tmp${tmp:+$ARY_SEP}${1#*"$ARY_SEP"}
+				while [ $((Reply -= 1)) -ge 0 ]
+				do tmp=$tmp${tmp:+$ARY_SEP}${1#*$ARY_SEP}
 				done
 				IFS=$ARY_SEP; set -- $tmp; unset IFS
 				new_ary "$@" ;;
-			*)  die "unknown argument to $fn: $1"
+			*)  die "unknown argument to $fn: %s" "$1"
 			esac ;;
 
 		/) # / (divide)
@@ -206,7 +212,7 @@ run () {
 			case $1 in
 			i*) to_int "$2"; Reply=i$(echo "${1#?} ^ $Reply" | bc) ;; # no exponents in posix
 			a*) to_str "$2"; ary_join "$Reply" "$1"; Reply=s$Reply ;;
-			*)  die "unknown argument to $fn: $1"
+			*)  die "unknown argument to $fn: %s" "$1"
 			esac ;;
 
 		\<) # < (less-than)
@@ -283,7 +289,7 @@ run () {
 					shift
 				done
 				;;
-			*)  die "unknown argument to $fn: $1"
+			*)  die "unknown argument to $fn: %s" "$1"
 			esac ;;
 
 	# Arity 4
@@ -291,7 +297,7 @@ run () {
 			case $1 in
 			s*) ;;
 			a*) ;;
-			*)  die "unknown argument to $fn: $1"
+			*)  die "unknown argument to $fn: %s" "$1"
 			esac 
 			TODO "!"
 			;;
