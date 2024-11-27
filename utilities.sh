@@ -27,9 +27,8 @@ s/^/"/; s/x$/"/' ;;
 	a0) printf '[]' ;;
 	a*) 
 		printf '['
-		IFS=$ARY_SEP && #set -o noglob
-		set -- $1; unset IFS; # set +o noglob
-		shift # delte `$@` prefix
+		IFS=$ARY_SEP; set -- $1; unset IFS;
+		shift # delete `$@` prefix
 
 		dump "$1"; shift
 		for arg; do
