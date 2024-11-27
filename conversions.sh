@@ -46,7 +46,7 @@ to_ary () case $1 in
 	[sFN]) Reply=a0 ;;
 
 	# True is just an array of itself
-	T) Reply=a1:T ;;
+	T) Reply=a1${ARY_SEP}T ;;
 
 	# For integers and non-empty strings, you simply iterate over each
 	# character, them into a list

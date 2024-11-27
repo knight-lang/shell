@@ -23,9 +23,10 @@ set -o nounset -o noglob
 # F(\d+)                   - fn ref, `eval`ing it will give you the original AST
 ##
 
-readonly ARY_SEP=\: #$(printf \\001)
-readonly FN_SEP=\( #$(printf \\002) 
-readonly EXEC_SEP=\` ##$(printf \\003)
+FN_SEP=$(printf %b '\001'); readonly FN_SEP
+ARY_SEP=$(printf %b '\002'); readonly ARY_SEP
+EXEC_SEP=$(printf %b '\003'); readonly EXEC_SEP
+
 readonly SCRIPT_NAME=${0##*/}
 readonly NEWLINE='
 '

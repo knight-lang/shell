@@ -20,26 +20,28 @@ next_expr () {
 
 	# Parse out the token
 	case $Line in
-		# Integers; cant use `0-9` cause it's locale-dependent technically
+		# Integers. (Cant use `0-9` cause it's locale-dependent.)
 		[0123456789]*)
 			Reply=i${Line%%[!0123456789]*}
 			Line=${Line#"${Reply#?}"} ;;
 
 		# Variables
-		[abcdefghijklmnopqrstuvwxyz_]*)
-			Reply=v${Line%%[!abcdefghijklmnopqrstuvwxyz_0123456789]*}
+		[[:lower:]_]*)
+			Reply=v${Line%%[![:lower:]_[:digit:]]*}
 			Line=${Line#"${Reply#?}"} ;;
 
-		# Strings; this have to be handled specially cause of multilined stuff
+		# Strings.
 		[\'\"]*)
 			quote=$(printf %c "$Line")
 			Line=${Line#?}
-			while [ "${Line%$quote*}" = "$Line" ]; do
-				IFS= read -r tmp || die "missing ending $quote quote."
+			while [ "${Line%$quote*}" = "$Line" ]
+			do
+				IFS= read -r tmp || \
+					die 'missing ending %s quote' $quote
 				Line=$Line$NEWLINE$tmp
 			done
-			Reply=s${Line%%"$quote"*}
-			Line=${Line#"${Reply#s}$quote"} ;;
+			Reply=s${Line%%$quote*}
+			Line=${Line#"${Reply#s}"$quote} ;;
 
 		# Array literal
 		@*)
