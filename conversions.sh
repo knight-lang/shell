@@ -15,8 +15,6 @@ to_str () case $1 in
 	*) die 'unknown type for to_str: %s' "$1" ;;
 esac
 
-echo todo string to integer
-
 ## Converts its argument to a plain integer, storing the result in `$Reply`
 to_int () case $1 in
 	# Integers you just strip off the `i`

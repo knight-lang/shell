@@ -21,8 +21,8 @@ run () {
 	esac
 
 	# Explode the arguments
-	IFS=$FN_SEP; set -o noglob
-	set -- $1; unset IFS; set +o noglob
+	IFS=$FN_SEP; #set -o noglob
+	set -- $1; unset IFS; #set +o noglob
 
 
 	# Execute arguments for functions that need them executed
@@ -34,8 +34,8 @@ run () {
 			shift 2
 			set -- "$tmp" "$@"
 		done
-		IFS=$EXEC_SEP; set -o noglob
-		set -- $1; unset IFS; set +o noglob
+		IFS=$EXEC_SEP; #set -o noglob
+		set -- $1; unset IFS; #set +o noglob
 	esac
 
 	fn=${1#f}
@@ -128,8 +128,8 @@ run () {
 		\[) # [ (head)
 			case $1 in
 				s*) Reply=$(printf %.2s "$1") ;;
-				a*) IFS=$ARY_SEP && set -o noglob
-					set -- $1 && set +o noglob && unset IFS
+				a*) IFS=$ARY_SEP && #set -o noglob
+					set -- $1; unset IFS; # set +o noglob
 					expandref "$2" ;;
 				*)  die "unknown argument to $fn: $1"
 			esac ;;
@@ -137,8 +137,8 @@ run () {
 		\]) # ] (tail)
 			case $1 in
 				s*) Reply=s${1#s?} ;;
-				a*) IFS=$ARY_SEP && set -o noglob
-					set -- $1 && set +o noglob && unset IFS
+				a*) IFS=$ARY_SEP && #set -o noglob
+					set -- $1; unset IFS; # set +o noglob && unset IFS
 					shift 2; new_ary "$@" ;;
 				*)  die "unknown argument to $fn: $1"
 			esac ;;
@@ -151,9 +151,9 @@ run () {
 			s*) to_str "$2"; Reply=s${1#?}$Reply ;;
 			a0) to_ary "$2";; # TODO: make this not a separate case if we decide on `a0:`
 			a*) to_ary "$2"
-				IFS=$ARY_SEP; set -o noglob
+				IFS=$ARY_SEP; #set -o noglob
 				set -- ${1#*"$ARY_SEP"} ${Reply#*"$ARY_SEP"}
-				unset IFS; set +o noglob
+				unset IFS; #set +o noglob
 				new_ary "$@" ;;
 			*)  die "unknown argument to $fn: $1" ;;
 			esac ;;
@@ -175,9 +175,9 @@ run () {
 				while [ $((Reply -= 1)) -ge 0 ]; do
 					tmp=$tmp${tmp:+$ARY_SEP}${1#*"$ARY_SEP"}
 				done
-				IFS=$ARY_SEP; set -o noglob
+				IFS=$ARY_SEP; #set -o noglob
 				set -- $tmp
-				unset IFS; set +o noglob
+				unset IFS; #set +o noglob
 				new_ary "$@" ;;
 			*)  die "unknown argument to $fn: $1"
 			esac ;;
@@ -262,8 +262,8 @@ run () {
 				local len=$3 start=$2
 				[ "$len" = 0 ] && { Reply=a0; return; }
 
-				IFS=$ARY_SEP; set -o noglob
-				set -- $1; unset IFS; set +o noglob
+				IFS=$ARY_SEP; #set -o noglob
+				set -- $1; unset IFS; #set +o noglob
 				shift $((start + 1)) # `+1` to get rid of the length
 
 				Reply=a$len
