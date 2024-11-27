@@ -1,29 +1,47 @@
 ## Evaluates the first arg as a knight program, putting the result in $Reply.
 eval_kn () {
-	# TODO: `exec` with no args to make this a builtin?
-	if [ $# = 0 ]; then
-		next_expr
-	else
-		next_expr <<EOS
+	if [ $# = 0 ]
+	then next_expr
+	else next_expr <<EOS
 $1
 EOS
 	fi || die 'no program given'
+
 	run "$Reply"
 }
 
+# seed is sued in `RANDOM`.
 seed=
 
+
+## Runs a Knight value.
 run () {
+	# Handle non-functions specially.
 	case $1 in
-		v*) eval "run \$$1"; return ;; # `set -o nounset` will fail if the var isnt valid
-		F?*) eval "run \"\$$1\""; return ;;
-		[!f]*) Reply="$1"; return ;;
+		# Variables. (Note that the `set -o nounset` we did will cause
+		# undefined variables to abort, albeit with a not-so-clear error
+		# message :-P).
+		v*)
+			eval "run \$$1" # Get the variable's value.
+			return ;;
+
+		# Function reference. Replace the current arguments with the
+		# expanded value.
+		F?*)
+			eval "run \"\$$1\""; return ;
+			# IFS=$FN_SEP; eval "set -- \$$1"; unset IFS
+			;;
+
+		# All other non-functions are just returned as-is
+		[!f]*)
+			Reply=$1
+			return ;;
 	esac
 
 	# Explode the arguments
 	IFS=$FN_SEP; set -- $1; unset IFS
 
-	# Execute arguments for functions that need them executed
+	# Execute arguments for functions which always execute their arguments.
 	case ${1#f} in [!B=\&\|WI]) # TODO: is it `!` or `^`?
 		# Execute all the arguments
 		while [ $# -gt 1 ]; do
@@ -35,10 +53,11 @@ run () {
 		IFS=$EXEC_SEP; set -- $1; unset IFS
 	esac
 
+	## Set the function name
 	fn=${1#f}
 	shift
 
-	# Execute functions
+	## Execute all the arguments
 	case $fn in
 	# Extensions
 		E) # EVAL
