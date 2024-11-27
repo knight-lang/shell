@@ -12,8 +12,10 @@ to_str () case $1 in
 	a*) ary_join "$NEWLINE" "$1" ;;
 
 	# Everything else is an error (eg `BLOCK`s)
-	*) die "unknown type for to_str: $1" ;;
+	*) die 'unknown type for to_str: %s' "$1" ;;
 esac
+
+echo todo string to integer
 
 ## Converts its argument to a plain integer, storing the result in `$Reply`
 to_int () case $1 in
@@ -23,15 +25,15 @@ to_int () case $1 in
 	s*) # TODO LOL
 		Reply=$(perl -e 'print 0+$ARGV[0];' -- "${1#s}") ;;
 
-	# TRUE, FALSE, and NULL have constant ints
+	# TRUE, FALSE, and NULL have constant integer values
 	[FN]) Reply=0 ;;
 	T)    Reply=1 ;;
 
 	# Arrays' length is the first element, after the leading `a`
-	a*) Reply=${1#a} Reply=${Reply%%"$ARY_SEP"*} ;;
+	a*) Reply=${1%%"$ARY_SEP"*}; Reply=${Reply#a} ;;
 
 	# Everything else is an error (eg `BLOCK`s)
-	*) die "unknown type for to_int: $1" ;;
+	*) die 'unknown type for to_int: %s' "$1" ;;
 esac
 
 ## Returns 0 if its argument is truthy
@@ -48,8 +50,8 @@ to_ary () case $1 in
 	# True is just an array of itself
 	T) Reply=a1:T ;;
 
-	# For integers and non-empty strings, you simply iterate over each character,
-	# putting theminto a list
+	# For integers and non-empty strings, you simply iterate over each
+	# character, them into a list
 	[si]*)
 		prefix=$(printf %c "$1") # Get the prefix
 		rest=${1#?}              # Delete the prefix
@@ -58,8 +60,9 @@ to_ary () case $1 in
 		if [ "${1#i-}" != "$1" ]; then prefix=i-; rest=${rest#?}; fi
 
 		# Construct the reply.
-		Reply=a${#rest}$(printf '%s' "$rest" | sed "s/./$ARY_SEP$prefix&/g") ;;
+		Reply=a${#rest}$(printf '%s' "$rest" | \
+			sed "s/./$ARY_SEP$prefix&/g") ;;
 
 	# Everything else is an error (eg `BLOCK`s)
-	*) die "unknown type for to_ary: $1" ;;
+	*) die 'unknown type for to_ary: %s' "$1" ;;
 esac

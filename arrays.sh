@@ -1,5 +1,7 @@
 ## Arrays are represented as a single string, in the following format:
+#
 #     a<ary_length>${ARY_SEP}element 1${ARY_SEP}element 2...
+#
 # Note that `$ARY_SEP` is a single character that's not within Knight's required
 # character set (and thus is safe to use a deliminator). It also isn't the same
 # as any of the other deliminators.
@@ -8,10 +10,11 @@
 # have won't conflict. The original value is reachable by `eval`ing the
 # reference (ie `eval "orig_ary=\$$reference"` gives you the reference). We
 # ensure that no normal variables in the program start with `A<DIGIT>`, so these
-# references are safe to use. 
+# references are safe to eval. 
 #
-# Most functions don't need to worry about references, but some (such as `[`) d
-# do, and handle them accordingly.
+# Most code doesn't need to worry about references; They're only a problem when
+# individual elements of an array are being examined, such as via `[` or `^`.
+# These are handled via `expandref`, which expands out array references.
 #
 # The empty array is `a0`
 ##
@@ -25,8 +28,8 @@ new_ary () {
 
 	for arg
 	do
-		# If an argument is a non-empty array, then create a reference for it and
-		# update `arg`.
+		# If an argument is a non-empty array, then create a reference
+		# for it and update `arg`.
 		if [ "${arg#a}" != "$arg" ] && ! [ "$arg" = a0 ]; then
 			eval "A$((Next_Ary_Ref_Idx += 1))=\$arg"
 			arg=A$Next_Ary_Ref_Idx
@@ -48,13 +51,21 @@ fi
 # the result in `$Reply`.
 ary_join () {
 	# If the array is empty, just return nothing
-	[ "$2" = a0 ] && { Reply=; return; }
+	if [ "$2" = a0 ]; then
+		Reply=
+		return
+	fi
 
-	# Set the result to start as an empty string
-	tmp=${2#*"$ARY_SEP"}
-	set -- "$1" "$tmp$ARY_SEP" ''
+	# This keeps track of local variables in $@, as `ary_join` might end up
+	# recursively calling itself (and clobbering previous values):
+	#   - $1 is the separator
+	#   - $2 is the elements remaining in the array
+	#   - $3 is the return value
 
-	# While there's still something left to join
+	everything_but_length=${2#*"$ARY_SEP"}
+	set -- "$1" "$everything_but_length$ARY_SEP" ''
+
+	# While there's still something left to join, keep joining
 	while [ -n "$2" ]; do
 		# Get the element to join
 		element=${2%%"$ARY_SEP"*}
@@ -65,7 +76,7 @@ ary_join () {
 		# Convert the expanded element
 		to_str "$Reply"
 
-		# Delete the first element out
+		# Delete the first element from the remaining list
 		rest=${2#*"$ARY_SEP"}
 
 		# Update the list of arguments

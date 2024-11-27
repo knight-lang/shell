@@ -3,7 +3,7 @@ die () {
 	fmt=$1
 	shift
 	printf "%s: $fmt\\n" "$SCRIPT_NAME" "$@"
-	exit 121
+	exit 2
 }
 
 ## Sets `Reply` to `T` or `F` based on the exit status of the last command.
@@ -24,9 +24,9 @@ dump () case $1 in
 $!N;$!bs
 s/\\/\\\\/g;s/\t/\\t/g;s/\r/\\r/g;s/"/\\"/g;s/\n/\\n/g
 s/^/"/; s/x$/"/' ;;
-	a0) printf \[\] ;;
+	a0) printf '[]' ;;
 	a*) 
-		printf \[
+		printf '['
 		IFS=$ARY_SEP && set -o noglob
 		set -- $1 && set +o noglob && unset IFS
 		shift # delte `$@` prefix
@@ -36,7 +36,7 @@ s/^/"/; s/x$/"/' ;;
 			printf ', '
 			dump "$arg"
 		done
-		printf \]
+		printf ']'
 		;;
 	A*) eval "dump \$$1" ;;
 	[fFv]*) printf '{%s}' "$1" ;;
