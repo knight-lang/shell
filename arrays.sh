@@ -61,26 +61,18 @@ ary_join () {
 	#   - $1 is the separator
 	#   - $2 is the elements remaining in the array
 	#   - $3 is the return value
-
-	everything_but_length=${2#*"$ARY_SEP"}
-	set -- "$1" "$everything_but_length$ARY_SEP" ''
+	set -- "$1" "${2#*$ARY_SEP}$ARY_SEP" ''
 
 	# While there's still something left to join, keep joining
 	while [ -n "$2" ]; do
-		# Get the element to join
-		element=${2%%"$ARY_SEP"*}
-
-		# Expands `element` out if it's an array
-		expandref "$element"
+		# Expands the first out if it's an array, else keep it the same.
+		expandref "${2%%$ARY_SEP*}"
 
 		# Convert the expanded element
 		to_str "$Reply"
 
-		# Delete the first element from the remaining list
-		rest=${2#*"$ARY_SEP"}
-
 		# Update the list of arguments
-		set -- "$1" "$rest" "$3$1$Reply"	
+		set -- "$1" "${2#*ARY_SEP}" "$3$1$Reply"	
 	done
 
 	# Since we had an extra `$ARY_SEP` when setting up the args, we need to

@@ -18,11 +18,11 @@ next_expr () {
 		IFS= read -r Line || return
 	done
 
-	# Parse out the token
+	# Parse out the token. Note that
 	case $Line in
 		# Integers. (Cant use `0-9` cause it's locale-dependent.)
-		[0123456789]*)
-			Reply=i${Line%%[!0123456789]*}
+		[0-9]*)
+			Reply=i${Line%%[!0-9]*}
 			Line=${Line#"${Reply#?}"} ;;
 
 		# Variables
@@ -52,14 +52,15 @@ next_expr () {
 		[][TFNPRBCQDOLAWVIGSE\$+\*/%^\<\>\?\&\|\;\~\!=,-]*)
 			Reply=$(printf %c "$Line")
 
+			# Strip out the function name
 			case $Reply in
-				[TFNPRBCQDOLAVWIGSE])
-					tmp=${Line%%[!ABCDEFGHIJKLMNOPQRSTUVWXYZ_]*}
-					Line=${Line#"$tmp"} ;;
+				[[:upper:]])
+					Line=${Line#"${Line%%[![:upper:]_]*}"};;
 				*)
 					Line=${Line#?}
 			esac
 
+			# Handle function literals specially.
 			case $Reply in
 				@) Reply=a0 ;;
 				[TFN]) ;;
@@ -82,7 +83,7 @@ parse_fn () {
 		if [ "${Reply#f}" = "$Reply" ]; then
 			set -- "$1$FN_SEP$Reply" $(( $2 - 1 ))
 		else
-			# Expression was a function, we have to get a refernece to it
+			# Expression was a function, we have to get a ref to it
 			eval "F$((Next_Fn_Ref_Idx += 1))=\$Reply"
 			set -- "$1${FN_SEP}F$Next_Fn_Ref_Idx" "$(( $2 - 1 ))"
 		fi

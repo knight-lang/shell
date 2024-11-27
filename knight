@@ -27,6 +27,9 @@ FN_SEP=$(printf %b '\001'); readonly FN_SEP
 ARY_SEP=$(printf %b '\002'); readonly ARY_SEP
 EXEC_SEP=$(printf %b '\003'); readonly EXEC_SEP
 
+# make sure `a-z` and friends when doing parsing are posix compliant.
+readonly LC_COLLATE=POSIX
+
 readonly SCRIPT_NAME=${0##*/}
 readonly NEWLINE='
 '
