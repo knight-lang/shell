@@ -20,8 +20,33 @@ to_int () case $1 in
 	# Integers you just strip off the `i`
 	i*) Reply=${1#i} ;;
 
-	s*) # TODO LOL
-		Reply=$(perl -e 'print 0+$ARGV[0];' -- "${1#s}") ;;
+	s*) # This is incredibly jank, and could be fixed up ;later
+		set -- "${1#s}"
+
+		# Delete leading whitespace
+		while tmp=${1#[[:space:]]}; [ "$tmp" != "$1" ]; do
+			set -- "$tmp"
+		done
+
+		# Find the sign
+		sign=
+		if tmp=${1#[-+]}; [ "$tmp" != "$1" ]; then
+			sign=${1%"$tmp"}
+			set -- "${1#?}"
+		fi
+
+		## Remove leading `0`s so it's not octal
+		while tmp=${1#0}; [ "$tmp" != "$1" ]; do
+			set -- "$tmp"
+		done
+
+		# Get the reply
+		Reply=${1%%[!0-9]*}
+		if [ -z "$Reply" ]; then
+			Reply=0
+		else
+			Reply=$sign$Reply
+		fi ;;
 
 	# TRUE, FALSE, and NULL have constant integer values
 	[FN]) Reply=0 ;;

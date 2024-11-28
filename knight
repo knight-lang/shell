@@ -85,7 +85,20 @@ EOS
 [ $# -ne 2 ] && usage 1
 
 case $1 in
-	-e) eval_kn "$2" ;;
-	-f) eval_kn <"$2" ;; # TODO: doesthis need to be quoted
+	-e) next_expr <<-EOS
+$2
+EOS
+	;;
+	-f) next_expr <"$2" ;; # TODO: does this need to be quoted
 	*)  usage 1 ;;
-esac
+esac || die no program given
+
+	# if [ $# = 0 ]; then
+	# 	next_expr
+	# else
+	# 	next_expr <<-EOS
+	# 		$1
+	# 	EOS
+	# fi || die 'no program given'
+
+run "$Reply"

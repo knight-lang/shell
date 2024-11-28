@@ -74,7 +74,10 @@ run () {
 
 	# Arity 0
 		P) # PROMPT
-			read -r Reply || { Reply=N; return; }
+			if ! read -r Reply && [ -z "$Reply" ]; then
+				Reply=N
+				return
+			fi
 			# This could be optimized
 			r=$(printf \\r)
 			while tmp=${Reply%"$r"}; [ ${#tmp} -ne ${#Reply} ]; do
@@ -138,7 +141,8 @@ run () {
 		A) # ASCII
 			case $1 in
 			s*) Reply=i$(printf %d \'"${1#?}") ;;
-			i*) Reply=s$(printf %b \\"$(printf %o ${1#?})") ;;
+			i*) Reply=s$(printf %bx \\"$(printf %o ${1#?})")
+				Reply=${Reply%x};; #`x` is for newlines
 			*)  die "unknown argument to $fn: %s" "$1" ;;
 			esac ;;
 
@@ -265,31 +269,24 @@ run () {
 			to_int "$2"; set -- "$1" $Reply "$3"
 			to_int "$3"; set -- "$1" $2 $Reply
 			case $1 in
-			s*) # No substr; gotta do it by hand :-(
-				# Is there a faster/better way to do this?
-				set -- "${1#s}" $2 $3
-
-				# Delete prefix
-				while [ $2 -ne 0 ]; do
-					set -- "${1#?}" $(($2 - 1)) $3
-				done
-
-				# Get remainder of the string
-				Reply=s
-				set -- "$1" $3
-				while [ $2 -ne 0 ]; do
-					Reply=$Reply$(printf %c "$1")
-					set -- "${1#?}" $(($2 - 1))
-				done ;;
+			s*) # No substr; gotta use sed
+				Reply=s$(printf %s "${1#s}" | sed "
+					:s
+					\$!N
+					\$!bs
+					s/^.\{$2\}\(.\{$3\}\).*/\1x/
+				")
+				Reply=${Reply%x}
+				;;
 			a*)
 				if [ $3 = 0 ] || [ $1 = a0 ]; then
 					Reply=a0
 					return
 				fi
-				local len=$3 start=$2
 
-				IFS=$ARY_SEP; set -- $1; unset IFS
-				shift $((start + 1)) # `+1` to get rid of the length
+				IFS=$ARY_SEP; set -- "$3" "$2" $1; unset IFS
+				len=$1
+				shift $(($2 + 3)) # `+3` for len, start, & alen
 
 				Reply=a$len
 				while [ $((len -= 1)) -ge 0 ]; do
@@ -302,12 +299,41 @@ run () {
 
 	# Arity 4
 		S) # SET
+			to_int "$2"; set -- "$1" $Reply "$3" "$4"
+			to_int "$3"; set -- "$1" $2 $Reply "$4"
 			case $1 in
-			s*) ;;
-			a*) ;;
+			s*)
+				to_str "$4"
+				Reply=s$(awk 'BEGIN{
+				print substr(ARGV[1], 1, ARGV[2]) \
+					ARGV[4] \
+					substr(ARGV[1], ARGV[2] + ARGV[3]+1) \
+					"x"
+				}' "${1#s}" $2 $3 "$Reply")
+				Reply=${Reply%x} ;;
+			a*)
+exit 1
+				# to_ary "$4"
+
+				# tmp=$Reply
+				# a=${1#*$ARY_SEP}
+				# Reply=
+				# start=$2
+				# while [ $start -ne 0 ]; do
+				# 	Reply=${}
+				# done
+
+				# # IFS=$ARY_SEP; set -- $1; unset IFS
+				# shift $((start + 1)) # `+1` to get rid of the length
+
+				# Reply=a$len
+				# while [ $((len -= 1)) -ge 0 ]; do
+				# 	Reply=$Reply$ARY_SEP$1
+				# 	shift
+				# done
+				;;
 			*)  die "unknown argument to $fn: %s" "$1"
 			esac 
-			die 'todo: SET'
 			;;
 
 		*) die 'unknown function: %s' "$1" ;;
