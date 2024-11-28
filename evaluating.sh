@@ -25,8 +25,8 @@ run () {
 		# Function reference. Replace the current arguments with the
 		# expanded value.
 		F?*)
-			eval "run \"\$$1\""; return ;
-			# IFS=$FN_SEP; eval "set -- \$$1"; unset IFS
+			eval "run \"\$$1\""
+			return
 			;;
 
 		# All other non-functions are just returned as-is
@@ -85,12 +85,13 @@ run () {
 		R) # RANDOM
 			# Posix shells don't have random themselves, so we have
 			# to dip into AWK.
-			Reply=i$(echo rand "BEGIN {
-				srand($seed)
+			Reply=i$(awk "BEGIN {
+				${seed+srand($seed)}
 				print int(rand() * 4294967295)
 				exit
 			}")
-			seed=${Reply#i};;
+			seed=${Reply#i}
+			;;
 
 
 	# Arity 1

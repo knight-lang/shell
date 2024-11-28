@@ -114,7 +114,7 @@ compare () case $1 in
 		else [ "${1#i}" -eq "$Reply" ]; Reply=$?
 		fi ;;
 	T) to_bool "$2"; Reply=$?;;
-	F) to_bool "$2"; Reply=$(( - ! $? ));;
+	F) to_bool "$2"; Reply=$(( - (! $?) ));;
 	a*)
 		to_ary "$2"
 		set -- "$1" "$Reply"

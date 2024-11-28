@@ -24,6 +24,12 @@
 #                                                                              #
 ################################################################################
 
+# If executed using bash, make sure it's posix compliant
+if [ -n "$BASH_VERSION" ]; then
+	export POSIXLY_CORRECT=1
+	set -o posix
+fi
+
 ## Set options
 set -o nounset -o noglob
 
