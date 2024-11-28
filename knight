@@ -1,44 +1,63 @@
-#!/bin/dash
+#!/bin/sh
 
 ################################################################################
-#                                    Setup                                     #
+
+## Naming scheme for vairables
+# READ_ONLY
+# Global_Variables
+# local_variable
+
+## Here's how values are represented:
+# i-?\d+                 - integer
+# s.*                    - string
+# [TFN]                  - true/false/null
+# v[a-z_][a-z0-9_]       - variable
+# a(\d+)(${ARY_SEP}ele)* - array; \1 is len, \2+ elements. ele cant be an array
+# A(\d+)                 - array ref; `eval`ing it gives you the original array
+# f(.)(${FN_SEP}ele)*    - function; \1 is name, \2+ are arguments.
+# F(\d+)                 - fn ref, `eval`ing it will give you the original fn
+##
+
+################################################################################
+#                                                                              #
+#                                   Setup                                      #
+#                                                                              #
 ################################################################################
 
 ## Set options
 set -o nounset -o noglob
 
-# Naming scheme:
-# READ_ONLY
-# Global_Variables
-# local_variable
+## Separators to separate elements; these don't exist in the Knight encoding set
+# so they're safe to use. (I picked the ascii separators for fun, but it could
+# be anything that's not in Knight and not considered whitespace.)
+readonly FN_SEP="$(printf \\036)" # 036 is "Record separator"
+readonly ARY_SEP="$(printf \\037)" # 037 is "Unit separator"
+readonly EXEC_SEP="$(printf \\034)" # 034 is "File separator"
 
-## Values:
-# i-?\d+                   - integer
-# s.*                      - string
-# [TFN]                    - true/false/null
-# v[a-z_][a-z0-9_]         - variable
-# a(\d+)(${ARY_SEP}value)* - array; \1 is len, \2+ is elements. value cannot be an ast
-# A(\d+)                   - array ref; `eval`ing it will give you the original array
-# f(.)(${FN_SEP}value)*    - function; \1 is name, \2+ are arguments.
-# F(\d+)                   - fn ref, `eval`ing it will give you the original AST
-##
-
-FN_SEP=$(printf %b '\001'); readonly FN_SEP
-ARY_SEP=$(printf %b '\002'); readonly ARY_SEP
-EXEC_SEP=$(printf %b '\003'); readonly EXEC_SEP
-
-# make sure `a-z` and friends when doing parsing are posix compliant.
+## Ensure `a-z` & co when parsing are POSIX compliant. Without this, it's
+# actually entirely implementation defined what `a-z` means.
 readonly LC_COLLATE=POSIX
 
+## Used in error messages
 readonly SCRIPT_NAME=${0##*/}
+
+## Required in a few places
 readonly NEWLINE='
 '
 
-TODO () { echo "TODO: $*"; exit 1; }
+## Hack required in case the directory containing this file ends in a `\n` lol
+KNIGHT_DIR=$(dirname -- "$0" && printf x) || {
+	pritnf >&2 '%s: [FATAL] cannot get directory of this script\n' \
+		"$SCRIPT_NAME"
+	exit 3
+}
+readonly KNIGHT_DIR="${KNIGHT_DIR%?x}"
 
-
-KNIGHT_DIR=$(dirname "$0")
-readonly KNIGHT_DIR
+################################################################################
+#                                                                              #
+#                            Import Knight Files                               #
+#                                                                              #
+################################################################################
 
 . "$KNIGHT_DIR/arrays.sh"
 . "$KNIGHT_DIR/conversions.sh"
@@ -46,8 +65,21 @@ readonly KNIGHT_DIR
 . "$KNIGHT_DIR/parsing.sh"
 . "$KNIGHT_DIR/evaluating.sh"
 
-eval_kn "$2"
-# eval_kn <<'EOS'
-# O ^ 9 3
-# EOS
-# run "$Reply"
+################################################################################
+#                                                                              #
+#                       Handle Command-line Arguments                          #
+#                                                                              #
+################################################################################
+
+usage () { cat >&$(($1 + 1)); exit $1; } <<EOS
+usage: $(basename "$0") [-h] (-e 'script' | -f filename)
+EOS
+
+[ "$1" = -h ] && usage 0
+[ $# -ne 2 ] && usage 1
+
+case $1 in
+	-e) eval_kn "$2" ;;
+	-f) eval_kn <"$2" ;; # TODO: doesthis need to be quoted
+	*)  usage 1 ;;
+esac

@@ -26,8 +26,8 @@ next_expr () {
 			Line=${Line#"${Reply#?}"} ;;
 
 		# Variables
-		[[:lower:]_]*)
-			Reply=v${Line%%[![:lower:]_[:digit:]]*}
+		[a-z_]*)
+			Reply=v${Line%%[!a-z_0-9]*}
 			Line=${Line#"${Reply#?}"} ;;
 
 		# Strings.
@@ -54,8 +54,8 @@ next_expr () {
 
 			# Strip out the function name
 			case $Reply in
-				[[:upper:]])
-					Line=${Line#"${Line%%[![:upper:]_]*}"};;
+				[A-Z])
+					Line=${Line#"${Line%%[!A-Z_]*}"};;
 				*)
 					Line=${Line#?}
 			esac

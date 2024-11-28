@@ -64,7 +64,6 @@ ary_join () {
 
 	# While there's still something left to join, keep joining
 	while [ -n "$2" ]; do
-		echo "{$@}"
 		# Expands the first out if it's an array, else keep it the same.
 		expandref "${2%%$ARY_SEP*}"
 

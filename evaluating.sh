@@ -111,8 +111,8 @@ run () {
 		O) # OUTPUT
 			to_str "$1"
 			case $Reply in
-			*\\) printf '%s\n' "$Reply" ;;
-			*)   printf '%s' "${Reply%?}" ;;
+			*\\) printf '%s' "${Reply%?}" ;;
+			*)  printf '%s\n' "$Reply" ;;
 			esac
 			Reply=N ;;
 
@@ -220,7 +220,8 @@ run () {
 			[ $Reply -lt 0 ]
 			newbool ;;
 
-		\>) compare "$@"
+		\>) # > (greater-than)
+			compare "$@"
 			[ $Reply -gt 0 ]
 			newbool ;;
 
@@ -237,15 +238,15 @@ run () {
 			to_bool "$Reply" || run "$2" ;;
 
 		\;) # ; (then)
-			Reply=$2 ;; # We've already actually executed it
+			Reply=$2 ;; # All arguments are already executed.
 
 		=) # = (assign) {args weren't evaluated}
 			run "$2"
 			eval "$1=\$Reply" ;;
 
 		W) # WHILE {args weren't evaluated}
-			while run "$1"; to_bool "$Reply"
-			do run "$2"
+			while run "$1"; to_bool "$Reply"; do
+				run "$2"
 			done
 			Reply=N ;;
 
@@ -253,32 +254,38 @@ run () {
 	# Arity 3
 		I) # IF {args weren't evaluated}
 			run "$1"
-			if to_bool "$Reply"
-			then run "$2"
-			else run "$3"
+			if to_bool "$Reply"; then
+				run "$2"
+			else
+				run "$3"
 			fi ;;
 
 		G) # GET
 			to_int "$2"; set -- "$1" $Reply "$3"
 			to_int "$3"; set -- "$1" $2 $Reply
 			case $1 in
-			s*) #[ "$1" = 0 ] && { Reply=s; return; }
+			s*) # No substr; gotta do it by hand :-(
 				# Is there a faster/better way to do this?
 				set -- "${1#s}" $2 $3
 
 				# Delete prefix
-				while [ "$2" -ne 0 ]; do set -- "${1#?}" $(($2-1)) $3; done
+				while [ $2 -ne 0 ]; do
+					set -- "${1#?}" $(($2 - 1)) $3
+				done
 
 				# Get remainder of the string
-				set -- "$1" "" $3
-				while [ ${#2} -ne $3 ]; do
-					_tmp=$(printf %c "$1")
-					set -- "${1#?}" "$2$_tmp" $3
-				done
-				Reply=s$2 ;;
+				Reply=s
+				set -- "$1" $3
+				while [ $2 -ne 0 ]; do
+					Reply=$Reply$(printf %c "$1")
+					set -- "${1#?}" $(($2 - 1))
+				done ;;
 			a*)
+				if [ $3 = 0 ] || [ $1 = a0 ]; then
+					Reply=a0
+					return
+				fi
 				local len=$3 start=$2
-				[ "$len" = 0 ] && { Reply=a0; return; }
 
 				IFS=$ARY_SEP; set -- $1; unset IFS
 				shift $((start + 1)) # `+1` to get rid of the length
@@ -299,7 +306,7 @@ run () {
 			a*) ;;
 			*)  die "unknown argument to $fn: %s" "$1"
 			esac 
-			TODO "!"
+			die 'todo: SET'
 			;;
 
 		*) die 'unknown function: %s' "$1" ;;
