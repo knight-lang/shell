@@ -12,6 +12,10 @@ esac
 # line we're on. We need this because `read` goes line-by-line.
 Line=
 
+## Next_Fn_Ref_Idx is used to calculate the next "function reference" variable.
+# It's the equivalent of `Next_Ary_Ref_Idx` but for functions.
+Next_Fn_Ref_Idx=0
+
 ## Returns the next expression from stdin, putting the response in `$Reply`. The
 # remainder of the input line is stored in `$Line`, which will be read the next
 # time this function is called.
@@ -75,8 +79,10 @@ next_expr () {
 		*)     Line=${Line#?}
 		esac
 
-		# Parse non-function-literals; fn literals are already parsed.
+		# Return early for "function literals"
 		[ -z "${Reply#[TFN]}" ] && return
+
+		# Parse out non-function-literals
 		parse_fn "$Reply" ;;
 
 	# Everything else is undefined.
@@ -86,13 +92,18 @@ next_expr () {
 }
 
 
-Next_Fn_Ref_Idx=0
+## Parse out a function and stick it in `$Reply`.
 parse_fn () {
 	arity "$1"
 	set -- "f$1" $Reply
 
 	while [ $2 -gt 0 ]; do
-		next_expr || return
+		if ! next_expr; then
+			fn=$(printf %c "${1#f}")
+			arity "$fn"
+			die 'missing argument %d for %s' \
+				$((Reply - $2 + 1)) "$fn"
+		fi
 
 		# Expression wasn't an ast, just assign it 
 		if [ "${Reply#f}" = "$Reply" ]; then
