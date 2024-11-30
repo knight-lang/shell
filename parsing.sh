@@ -76,8 +76,8 @@ next_expr () {
 		esac
 
 		# Parse non-function-literals; fn literals are already parsed.
-		[ -n "${Reply#[TFN]}" ] && parse_fn "$Reply"
-		echo $Reply ;;
+		[ -z "${Reply#[TFN]}" ] && return
+		parse_fn "$Reply" ;;
 
 	# Everything else is undefined.
 	*)
