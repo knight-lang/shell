@@ -1,13 +1,6 @@
 ## Evaluates the first arg as a knight program, putting the result in $Reply.
 eval_kn () {
-	if [ $# = 0 ]; then
-		next_expr
-	else
-		next_expr <<-EOS
-			$1
-		EOS
-	fi || die 'no program given'
-
+	next_expr || die 'no program given'
 	run "$Reply"
 }
 
