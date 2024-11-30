@@ -20,9 +20,13 @@ next_expr () {
 
 	# Parse out the token. Note that
 	case $Line in
-		# Integers. (Cant use `0-9` cause it's locale-dependent.)
+		# Integers.
 		[0-9]*)
-			Reply=i${Line%%[!0-9]*}
+			Reply=${Line%%[!0-9]*}
+			while [ ${Reply#0} != $Reply ]; do
+				Reply=${Reply#0}
+			done
+			Reply=i$Reply
 			Line=${Line#"${Reply#?}"} ;;
 
 		# Variables

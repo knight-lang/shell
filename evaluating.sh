@@ -312,25 +312,36 @@ run () {
 				}' "${1#s}" $2 $3 "$Reply")
 				Reply=${Reply%x} ;;
 			a*)
-exit 1
-				# to_ary "$4"
+				to_ary "$4"
 
-				# tmp=$Reply
-				# a=${1#*$ARY_SEP}
-				# Reply=
-				# start=$2
-				# while [ $start -ne 0 ]; do
-				# 	Reply=${}
-				# done
+				Reply=$Reply$ARY_SEP repl=${Reply#*$ARY_SEP}
+				ary=$1$ARY_SEP; ary=${ary#*$ARY_SEP}
+				start=$2 len=$3
+				Reply=
 
-				# # IFS=$ARY_SEP; set -- $1; unset IFS
-				# shift $((start + 1)) # `+1` to get rid of the length
+				# Get the starting portion
+				while [ $start -gt 0 ]; do
+					tmp=${ary#*$ARY_SEP}
+					Reply=$Reply${ary%"$tmp"}
+					ary=$tmp
+					start=$((start - 1))
+				done
 
-				# Reply=a$len
-				# while [ $((len -= 1)) -ge 0 ]; do
-				# 	Reply=$Reply$ARY_SEP$1
-				# 	shift
-				# done
+				# Add replacement
+				Reply=$Reply$repl
+
+				# Delete unwanted elements
+				while [ $len -gt 0 ]; do
+					ary=${ary#*$ARY_SEP}
+					len=$((len - 1))
+				done
+
+				Reply=$Reply$ary
+				Reply=${Reply%$ARY_SEP}
+				len=$(printf %s "$Reply" | tr -dc "$ARY_SEP" | \
+					wc -c)
+				Reply=a$((0 + len))$ARY_SEP$Reply
+				Reply=${Reply%$ARY_SEP}
 				;;
 			*)  die "unknown argument to $fn: %s" "$1"
 			esac 
