@@ -1,4 +1,4 @@
-## Sets `$Reply` To the amount of arguments the Knight function in `$1` expects. 
+## Sets `$Reply` To the amount of arguments the Knight function in `$1` expects.
 arity () case $1 in
 	[PR])                    Reply=0 ;;
 	[][\$OEBCQ\!LD,AV\~])    Reply=1 ;;
@@ -105,7 +105,7 @@ parse_fn () {
 				$((Reply - $2 + 1)) "$fn"
 		fi
 
-		# Expression wasn't an ast, just assign it 
+		# Expression wasn't an ast, just assign it
 		if [ "${Reply#f}" = "$Reply" ]; then
 			set -- "$1$FN_SEP$Reply" $(($2 - 1))
 		else

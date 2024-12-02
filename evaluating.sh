@@ -8,24 +8,17 @@ eval_kn () {
 run () {
 	# Handle non-functions specially.
 	case $1 in
-		# Variables. (Note that the `set -o nounset` we did will cause
-		# undefined variables to abort, albeit with a not-so-clear error
-		# message :-P).
-		v*)
-			eval "run \$$1" # Get the variable's value.
-			return ;;
+	# Variables. To access their values we need to `eval` them. (Note that
+	# the `set -o nounset` we did will cause undefined variables to abort,
+	# albeit with a not-so-clear error message :-P).
+	v*) eval "Reply=\$$1"; return ;;
 
-		# Function reference. Replace the current arguments with the
-		# expanded value.
-		F?*)
-			eval "run \"\$$1\""
-			return
-			;;
+	# Function reference. Replace the current arguments with the expanded
+	# value. Note this function variant doesn't `return`, unlike the others.
+	F?*) IFS=; eval "set -- \$$1"; unset IFS ;;
 
-		# All other non-functions are just returned as-is
-		[!f]*)
-			Reply=$1
-			return ;;
+	# All other non-functions are just returned as-is
+	[!f]*) Reply=$1; return ;;
 	esac
 
 	# Explode the arguments
@@ -337,7 +330,7 @@ run () {
 				Reply=${Reply%$ARY_SEP}
 				;;
 			*)  die "unknown argument to $fn: %s" "$1"
-			esac 
+			esac
 			;;
 
 		*) die 'unknown function: %s' "$1" ;;

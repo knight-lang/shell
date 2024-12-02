@@ -15,15 +15,22 @@ fi
 
 ## Dumps its argument to stdout.
 dump () case $1 in
-	T) printf true ;;
+	# TRUE, FALSE, and NULL have literal messages
+	T) printf true  ;;
 	F) printf false ;;
-	N) printf null ;;
+	N) printf null  ;;
+
+	# Integers: you just delete the `i` prefix
 	i*) printf %d ${1#i} ;;
+
+	# For strings, you need to go through `sed` to do the replacements.
 	s*) printf %sx "${1#s}" | sed '
 # Collect all input lines into the pattern space so we can delete the newline.
 :s
 $!N
 $!bs
+# At this point, the entire input is in the pattern space, so we can now parse
+# it all out.
 
 # Do the required escapes.
 s/\\/\\\\/g
@@ -38,30 +45,28 @@ s/^/"/
 # Add a " at the end of the input, and delete the "x". (The "x" is added so that
 # the last character of the input is not a newline, as that is hard to handle.)
 s/x$/"/' ;;
-	a0) printf '[]' ;;
-	a*) 
-		printf '['
-		IFS=$ARY_SEP; set -- $1; unset IFS;
-		shift # delete `$@` prefix
 
-		dump "$1"; shift
-		for arg; do
-			printf ', '
-			dump "$arg"
-		done
-		printf ']'
-		;;
-	A*) eval "dump \$$1" ;;
-	[fFv]*) printf '{%s}' "$1" ;;
-	*) die "unknown type for dump: $1" ;;
+	# Handle arrays
+	a*)
+		printf '['
+		IFS=$ARY_SEP; set -- $1; unset IFS
+		shift # delete `a#` prefix
+
+		if [ $# -ne 0 ]; then
+			dump "$1"; shift
+			for arg; do
+				printf ', '
+				dump "$arg"
+			done
+		fi
+		printf ']' ;;
+
+	# For every other type just print it with `{}` around it.
+	*) printf '{%s}' "$1" ;;
 esac
 
 ## Returns whether its arguments are equal, ie knight's `?` function
 are_equal () {
-	# Expand out prefixes
-	expandref "$1"; set -- "$Reply" "$2"
-	expandref "$2"; set -- "$1" "$Reply"
-
 	# If they're identical, then they're equal.
 	[ "$1" = "$2" ] && return
 
@@ -71,63 +76,87 @@ are_equal () {
 		return 1
 	fi
 
+	# Make sure the lengths of the arrays are the same; if they aren't, then
+	# there's no way they're equal.
 	left_len=${1%%$ARY_SEP*} left_len=${left_len#a}
 	right_len=${2%%$ARY_SEP*} right_len=${right_len#a}
-
 	[ "$left_len" -ne "$right_len" ] && return 1
 
-	tmp1=${1#$ARY_SEP*}
-	tmp2=${2#$ARY_SEP*}
-	set -- "$tmp1" "$tmp2"
+	# Strip out the length prefixes. This is technically redundant, as they
+	# will always be equal (as we checked for their equality in the previous
+	# line), but it'll save a recursive function call.
+	set -- "${1#$ARY_SEP*}" "${2#$ARY_SEP*}"
 
-	# They're both arrays. Given how we've checked for direct equality, the
-	# only things that we need to check for now are `A*`s. We also can't
-	# `set -- $1``, as we have two arrays to deal with. lovely :-(
-	while [ -n "$1" ] && [ -n "$2" ]; do
+	# Check each element at a time, seeing if they're equal, returning at
+	# the first non-equal comparison. (We only check for `-n "$1"` because
+	# they both have the same length, so there's no need to do two `-n`s.)
+	while [ -n "$1" ]; do
 		# Fetch the first elements out of the arrays
-		left="${1%%$ARY_SEP*}"
-		tmp1=${1#"$left"}
-		tmp1=${tmp1#$ARY_SEP}
-
-		right="${2%%$ARY_SEP*}"
-		tmp2=${2#"$right"}
-		tmp2=${tmp2#$ARY_SEP}
+		left=${1%%$ARY_SEP*} tmp1=${1#"$left"} tmp1=${tmp1#$ARY_SEP}
+		right="${2%%$ARY_SEP*}" tmp2=${2#"$right"} tmp2=${tmp2#$ARY_SEP}
 
 		# Remove the elements from the arrays
 		set -- "$tmp1" "$tmp2"
 
-		# Check to see if they're the same
-		are_equal "$left" "$right" || return
+		# Expand out array references if we have any
+		expandref "$left"; left=$Reply
+		expandref "$right" # Note `expandref` won't clobber `$left`
+
+		# Check to see if they're the same, returning if they arent
+		are_equal "$left" "$Reply" || return
 	done
+
+	# `while` will return `0` when its done, so no need to explicitly return
+	# here.
 }
 
-## Sets $Reply to `-1`, `0`, or `1` depending on whether the first argument is
-# smaller than, equal to or greater than the second argument.
+## Sets `$Reply` to a negative, zero, or positive integer depending on whether
+# the first argument is smaller than, equal to or greater than the second.
 compare () case $1 in
+	# Compare strings. According to POSIX, `[` doesn't need to support
+	# lexicographical string comparisons; the correct way to do it is via
+	# `expr`'s `<` operator, with a noninteger character prepended to ensure
+	# that they won't be treated as integers.
 	s*)
-		if to_str "$2"; [ "${1#s}" \< "$Reply" ]
-		then Reply=-1
-		else [ "${1#s}" = "$Reply" ];  Reply=$?
+		# TODO: how does `LC_ALL` and co factor into this?
+		if to_str "$2"; expr "a${1#s}" \< "a$Reply" >/dev/null; then
+			Reply=-1
+		else
+			[ "${1#s}" = "$Reply" ]
+			Reply=$? # Abuse the fact that `[`'s returns `1` or `0`.
 		fi ;;
-	i*) 	if to_int "$2"; [ "${1#i}" -lt "$Reply" ]
-		then Reply=-1
-		else [ "${1#i}" -eq "$Reply" ]; Reply=$?
+
+	# Compare integers; unlike strings, we can use `[` as it supports ints.
+	i*) 	if to_int "$2"; [ ${1#i} -lt $Reply ]; then
+			Reply=-1
+		else
+			Reply=$((${1#i} != Reply))
 		fi ;;
+
+	# TRUE and FALSE comparisons; we can actually use the return value from
+	# `to_bool "$2"` to determine the comparisons.
 	T) to_bool "$2"; Reply=$?;;
 	F) to_bool "$2"; Reply=$(( - (! $?) ));;
 	a*)
+		# Compare arrays. this is a bit janky tbh, and could be made
+		# much clearer
 		to_ary "$2"
 		set -- "$1" "$Reply"
 
-		prefix1="${1%%$ARY_SEP*}" tmp1=${1#"$prefix1"} tmp1=${tmp1#$ARY_SEP}
-		prefix2="${2%%$ARY_SEP*}" tmp2=${2#"$prefix2"} tmp2=${tmp2#$ARY_SEP}
+		prefix1="${1%%$ARY_SEP*}" tmp1=${1#"$prefix1"} \
+			tmp1=${tmp1#$ARY_SEP}
+		prefix2="${2%%$ARY_SEP*}" tmp2=${2#"$prefix2"} \
+			tmp2=${tmp2#$ARY_SEP}
 		set -- "$tmp1" "$tmp2"
 
 		set -- "$@" "${prefix1#a}" "${prefix2#a}"
 		
 		while [ -n "$1" ] && [ -n "$2" ]; do
-			prefix1="${1%%$ARY_SEP*}" tmp1=${1#"$prefix1"} tmp1=${tmp1#$ARY_SEP}
-			prefix2="${2%%$ARY_SEP*}" tmp2=${2#"$prefix2"} tmp2=${tmp2#$ARY_SEP}
+			prefix1="${1%%$ARY_SEP*}" tmp1=${1#"$prefix1"} \
+				tmp1=${tmp1#$ARY_SEP}
+			prefix2="${2%%$ARY_SEP*}" tmp2=${2#"$prefix2"} \
+				tmp2=${tmp2#$ARY_SEP}
+
 			set -- "$tmp1" "$tmp2" "$3" "$4"
 			expandref "$prefix1"; prefix1=$Reply
 			expandref "$prefix2"
@@ -135,5 +164,7 @@ compare () case $1 in
 			[ $Reply = 0 ] || return 0
 		done
 		compare i$3 i$4 ;;
+
+	# Every type is invalid for `compare`
 	*) die 'unknown type for compare: %s' "$1" ;;
 esac

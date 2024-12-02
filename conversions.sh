@@ -1,12 +1,15 @@
+## Conversions to different fundamental types within Knight.
+
 ## Converts its argument to a plain string, storing the result in `$Reply`.
+# (This function does not return strings with the `s` prefix.)
 to_str () case $1 in
 	# For strings and integers, their string repr is just themselves
 	[si]*) Reply=${1#?} ;;
 
 	# TRUE, FALSE, and NULL have literal representations
-	T) Reply=true ;;
+	T) Reply=true  ;;
 	F) Reply=false ;;
-	N) Reply= ;;
+	N) Reply=      ;;
 
 	# Arrays need to be joined by newlines
 	a*) ary_join "$NEWLINE" "$1" ;;
@@ -16,37 +19,10 @@ to_str () case $1 in
 esac
 
 ## Converts its argument to a plain integer, storing the result in `$Reply`
+# (This function does not return integers with the `i` prefix.)
 to_int () case $1 in
 	# Integers you just strip off the `i`
 	i*) Reply=${1#i} ;;
-
-	s*) # This is incredibly jank, and could be fixed up ;later
-		set -- "${1#s}"
-
-		# Delete leading whitespace
-		while tmp=${1#[[:space:]]}; [ "$tmp" != "$1" ]; do
-			set -- "$tmp"
-		done
-
-		# Find the sign
-		sign=
-		if tmp=${1#[-+]}; [ "$tmp" != "$1" ]; then
-			sign=${1%"$tmp"}
-			set -- "${1#?}"
-		fi
-
-		## Remove leading `0`s so it's not octal
-		while tmp=${1#0}; [ "$tmp" != "$1" ]; do
-			set -- "$tmp"
-		done
-
-		# Get the reply
-		Reply=${1%%[!0-9]*}
-		if [ -z "$Reply" ]; then
-			Reply=0
-		else
-			Reply=$sign$Reply
-		fi ;;
 
 	# TRUE, FALSE, and NULL have constant integer values
 	[FN]) Reply=0 ;;
@@ -54,6 +30,40 @@ to_int () case $1 in
 
 	# Arrays' length is the first element, after the leading `a`
 	a*) Reply=${1%%$ARY_SEP*} Reply=${Reply#a} ;;
+
+	# Strings have to be parsed, as POSIX sh doesn't have a builtin way to
+	# do the c-style `atoi` string -> int conversion.
+	s*)
+		# Delete `s` prefix.
+		Reply=${1#s}
+
+		# Delete leading whitespace
+		while tmp=${Reply#[[:space:]]}; [ "$tmp" != "$Reply" ]; do
+			Reply=$tmp
+		done
+
+		# Find the sign, if one exists
+		sign= ; case $(printf %c "$Reply") in
+		-) sign=- Reply=${Reply#-} ;;
+		+) Reply=${Reply#+} ;;
+		esac
+
+		# Strip non-integer trailing characters
+		Reply=${Reply%%[!0-9]*}
+
+		# Remove leading `0`s from the reply so it's not octal.
+		while tmp=${Reply#0}; [ "$tmp" != "$Reply" ]; do
+			Reply=$tmp
+		done
+
+		# If the Reply is empty, that means we stripped _all_ zeros, or
+		# there were no digits to begin with. Default to zero.
+		if [ -z "$Reply" ]; then
+			Reply=0
+		else
+			# There were digits, prepend the sign!
+			Reply=$sign$Reply
+		fi ;;
 
 	# Everything else is an error (eg `BLOCK`s)
 	*) die 'unknown type for to_int: %s' "$1" ;;

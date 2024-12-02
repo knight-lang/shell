@@ -10,7 +10,7 @@
 # have won't conflict. The original value is reachable by `eval`ing the
 # reference (ie `eval "orig_ary=\$$reference"` gives you the reference). We
 # ensure that no normal variables in the program start with `A<DIGIT>`, so these
-# references are safe to eval. 
+# references are safe to eval.
 #
 # Most code doesn't need to worry about references; They're only a problem when
 # individual elements of an array are being examined, such as via `[` or `^`.
