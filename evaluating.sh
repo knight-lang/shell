@@ -138,7 +138,7 @@ run () {
 		\[) # [ (head)
 			case $1 in
 				s*) Reply=$(printf %.2s "$1") ;;
-				a*) IFS=$ARY_SEP; set -- $1; unset IFS;
+				a*) IFS=$ARY_SEP; set -- $1; unset IFS
 					expandref "$2" ;;
 				*)  die "unknown argument to $fn: %s" "$1"
 			esac ;;
@@ -146,7 +146,7 @@ run () {
 		\]) # ] (tail)
 			case $1 in
 				s*) Reply=s${1#s?} ;;
-				a*) IFS=$ARY_SEP; set -- $1; unset IFS;
+				a*) IFS=$ARY_SEP; set -- $1; unset IFS
 					shift 2; new_ary "$@" ;;
 				*)  die "unknown argument to $fn: %s" "$1"
 			esac ;;
