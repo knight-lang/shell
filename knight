@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 
 ################################################################################
 
@@ -51,6 +51,10 @@ readonly SCRIPT_NAME=${0##*/}
 readonly NEWLINE='
 '
 
+## Required by `PROMPT`
+CARRIAGE_RETURN="$(printf \\rx)"; CARRIAGE_RETURN="${CARRIAGE_RETURN%x}"
+readonly CARRIAGE_RETURN
+
 ## Hack required in case the directory containing this file ends in a `\n` lol
 KNIGHT_DIR=$(dirname -- "$0" && printf x) || {
 	pritnf >&2 '%s: [FATAL] cannot get directory of this script\n' \
@@ -88,7 +92,7 @@ case $1 in
 	-e) next_expr <<-EOS ;;
 $2
 	EOS
-	-f) next_expr <"$2" ;; # TODO: does this need to be quoted
+	-f) next_expr <"$2" ;; # Quoted b/c old bash versions don't like it.
 	*)  usage 1 ;;
 esac
 

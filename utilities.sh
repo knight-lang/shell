@@ -53,10 +53,10 @@ s/x$/"/' ;;
 		shift # delete `a#` prefix
 
 		if [ $# -ne 0 ]; then
-			dump "$1"; shift
+			expandref "$1"; dump "$Reply"; shift
 			for arg; do
 				printf ', '
-				dump "$arg"
+				expandref "$arg"; dump "$Reply"
 			done
 		fi
 		printf ']' ;;
