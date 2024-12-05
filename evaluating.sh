@@ -18,7 +18,7 @@ run () {
 	F?*) IFS=; eval "set -- \$$1"; unset IFS ;;
 
 	# All other non-functions are just returned as-is
-	[!f]*) Reply=$1; return ;;
+	[!f]*) Reply=$1; return
 	esac
 
 	# Explode the arguments
@@ -115,8 +115,8 @@ run () {
 	O) # OUTPUT
 		to_str "$1"
 		case $Reply in
-		*\\) printf '%s' "${Reply%?}" ;;
-		*)  printf '%s\n' "$Reply" ;;
+		*\\) printf '%s'   "${Reply%?}" ;;
+		*)   printf '%s\n' "$Reply"     ;;
 		esac
 		Reply=N ;;
 
@@ -124,10 +124,8 @@ run () {
 		case $1 in
 		s*) Reply=i$(( ${#1} - 1 )) ;; # -1 b/c of prefix
 		a*) Reply=${1%%$ARY_SEP*} Reply=i${Reply#?} ;;
-		*) # Support Knight 2.0.1 behaviour
-			to_ary "$1"
-			Reply=${Reply%%$ARY_SEP*}
-			Reply=i${Reply#?} ;;
+ 		# Support Knight 2.0.1 behaviour
+		*)  to_ary "$1"; tmp=${Reply%%$ARY_SEP*} Reply=i${tmp#?}
 		esac ;;
 
 	!) # ! (not)
@@ -140,10 +138,15 @@ run () {
 
 	A) # ASCII
 		case $1 in
-		s*) Reply=i$(printf %d \'"${1#?}") ;;
-		i*) Reply=s$(printf %bx \\"$(printf %o ${1#?})")
-			Reply=${Reply%x};; #`x` is for newlines
-		*)  die "unknown argument to $fn: %s" "$1" ;;
+		# Rely on little-known-fact that `printf %d 'str` prints the
+		# codepoint of `str`'s first character.
+		s*) Reply=i$(printf %d \'"${1#s}") ;;
+
+		# Use a nested `printf`; `printf %b` interprets `\` escapes, and
+		# the inner one returns an octal variation. (`x` allows for
+		# trailing newlines)
+		i*) tmp=s$(printf %bx \\$(printf %o ${1#?})) Reply=${tmp%x};;
+		*)  die "unknown argument to $fn: %s" "$1"
 		esac ;;
 
 	,) # , (box)
@@ -151,18 +154,16 @@ run () {
 
 	\[) # [ (head)
 		case $1 in
-			s*) Reply=$(printf %.2s "$1") ;;
-			a*) IFS=$ARY_SEP; set -- $1; unset IFS
-				expandref "$2" ;;
-			*)  die "unknown argument to $fn: %s" "$1"
+		s*) Reply=$(printf %.2s "$1") ;; # ".2s" will also print `s`.
+		a*) IFS=$ARY_SEP; set -- $1; unset IFS; expandref "$2" ;;
+		*)  die "unknown argument to $fn: %s" "$1"
 		esac ;;
 
 	\]) # ] (tail)
 		case $1 in
-			s*) Reply=s${1#s?} ;;
-			a*) IFS=$ARY_SEP; set -- $1; unset IFS
-				shift 2; new_ary "$@" ;;
-			*)  die "unknown argument to $fn: %s" "$1"
+		s*) Reply=s${1#s?} ;;
+		a*) IFS=$ARY_SEP; set -- $1; unset IFS; shift 2; new_ary "$@" ;;
+		*)  die "unknown argument to $fn: %s" "$1"
 		esac ;;
 
     ########################################################################
@@ -180,7 +181,7 @@ run () {
 			set -- ${1#*$ARY_SEP} ${Reply#*$ARY_SEP}
 			unset IFS
 			new_ary "$@" ;;
-		*)  die "unknown argument to $fn: %s" "$1" ;;
+		*)  die "unknown argument to $fn: %s" "$1"
 		esac ;;
 
 	-) # - (subtract)
@@ -355,6 +356,6 @@ run () {
 		esac
 		;;
 
-	*) die 'unknown function: %s' "$1" ;;
+	*) die 'unknown function: %s' "$1"
 	esac
 }

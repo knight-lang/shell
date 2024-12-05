@@ -93,7 +93,7 @@ case $1 in
 $2
 	EOS
 	-f) next_expr <"$2" ;; # Quoted b/c old bash versions don't like it.
-	*)  usage 1 ;;
+	*)  usage 1
 esac
 
 run "$Reply"

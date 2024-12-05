@@ -15,7 +15,7 @@ to_str () case $1 in
 	a*) ary_join "$NEWLINE" "$1" ;;
 
 	# Everything else is an error (eg `BLOCK`s)
-	*) die 'unknown type for to_str: %s' "$1" ;;
+	*) die 'unknown type for to_str: %s' "$1"
 esac
 
 ## Converts its argument to a plain integer, storing the result in `$Reply`
@@ -45,7 +45,7 @@ to_int () case $1 in
 		# Find the sign, if one exists
 		sign= ; case $(printf %c "$Reply") in
 		-) sign=- Reply=${Reply#-} ;;
-		+) Reply=${Reply#+} ;;
+		+) Reply=${Reply#+}
 		esac
 
 		# Strip non-integer trailing characters
@@ -66,7 +66,7 @@ to_int () case $1 in
 		fi ;;
 
 	# Everything else is an error (eg `BLOCK`s)
-	*) die 'unknown type for to_int: %s' "$1" ;;
+	*) die 'unknown type for to_int: %s' "$1"
 esac
 
 ## Returns 0 if its argument is truthy
@@ -97,5 +97,5 @@ to_ary () case $1 in
 			sed "s/./$ARY_SEP$prefix&/g") ;;
 
 	# Everything else is an error (eg `BLOCK`s)
-	*) die 'unknown type for to_ary: %s' "$1" ;;
+	*) die 'unknown type for to_ary: %s' "$1"
 esac

@@ -62,7 +62,7 @@ s/x$/"/' ;;
 		printf ']' ;;
 
 	# For every other type just print it with `{}` around it.
-	*) printf '{%s}' "$1" ;;
+	*) printf '{%s}' "$1"
 esac
 
 ## Returns whether its arguments are equal, ie knight's `?` function
@@ -166,5 +166,5 @@ compare () case $1 in
 		compare i$3 i$4 ;;
 
 	# Every type is invalid for `compare`
-	*) die 'unknown type for compare: %s' "$1" ;;
+	*) die 'unknown type for compare: %s' "$1"
 esac

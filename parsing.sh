@@ -5,7 +5,7 @@ arity () case $1 in
 	[-+\*/%^\?\<\>\&\|\;=W]) Reply=2 ;;
 	[GI])                    Reply=3 ;;
 	S)                       Reply=4 ;;
-	*) die 'unknown function: %s' "$1" ;;
+	*) die 'unknown function: %s' "$1"
 esac
 
 ## Line is a global variable used by `next_expr` to keep track of the current
