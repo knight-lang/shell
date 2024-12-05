@@ -1,9 +1,3 @@
-## Evaluates the first arg as a knight program, putting the result in $Reply.
-eval_kn () {
-	next_expr || die 'no program given'
-	run "$Reply"
-}
-
 ## Runs a Knight value.
 run () {
 	# Handle non-functions specially.
@@ -51,7 +45,10 @@ run () {
     ########################################################################
 	E) # EVAL
 		to_str "$1"
-		eval_kn "$Reply" ;;
+		next_expr <<-EOS
+			$Reply
+		EOS
+		run "$Reply" ;;
 
 	\$) # $ (system)
 		to_str "$1"
@@ -176,12 +173,13 @@ run () {
 		i*) to_int "$2"; Reply=i$((${1#?} + Reply)) ;;
 		s*) to_str "$2"; Reply=s${1#?}$Reply ;;
 		a0) to_ary "$2" ;;
-		a*) to_ary "$2"
+		a*) # If there was a way to count `$ARY_SEP` this'd be easier
+			to_ary "$2"
 			IFS=$ARY_SEP
 			set -- ${1#*$ARY_SEP} ${Reply#*$ARY_SEP}
 			unset IFS
 			new_ary "$@" ;;
-		*)  die "unknown argument to $fn: %s" "$1"
+		*) die "unknown argument to $fn: %s" "$1"
 		esac ;;
 
 	-) # - (subtract)
@@ -210,7 +208,7 @@ run () {
 
 	/) # / (divide)
 		to_int "$2"
-		Reply=i$((${1#?} / Reply)) ;;
+		Reply=i$((${1#?} / $Reply)) ;;
 
 	%) # % (modulo)
 		to_int "$2"
@@ -218,7 +216,7 @@ run () {
 
 	^) # ^ (power)
 		case $1 in
-		# (No exponents in sh, so we gotta use BC.)
+		# (No exponents in sh, so we gotta use `bc`.)
 		i*) to_int "$2"; Reply=i$(echo ${1#i} \^ $Reply | bc) ;;
 		a*) to_str "$2"; ary_join "$Reply" "$1"; Reply=s$Reply ;;
 		*)  die "unknown argument to $fn: %s" "$1"
@@ -250,6 +248,10 @@ run () {
 		Reply=$2 ;; # All arguments are already executed.
 
 	=) # = (assign) {args weren't evaluated}
+		# Make sure we're only given variables
+		case $1 in [!v]*)
+			die "can only assign to variables (was given %s)" "$1"
+		esac
 		run "$2"
 		eval "$1=\$Reply" ;;
 
@@ -267,38 +269,36 @@ run () {
 
 	I) # IF {args weren't evaluated}
 		run "$1"
-		if to_bool "$Reply"; then
-			run "$2"
-		else
-			run "$3"
-		fi ;;
+		to_bool "$Reply"
+		shift $((1 + $?))
+		run "$1" ;;
 
 	G) # GET
+		# Both arg 2 and arg 3 are always ints.
 		to_int "$2"; set -- "$1" $Reply "$3"
-		to_int "$3"; set -- "$1" $2 $Reply
+		to_int "$3" # Don't need to `set` as we use `$Reply` directly.
+
 		case $1 in
-		s*) # No substr; gotta use sed
-			Reply=s$(awk 'BEGIN{
-			print substr(ARGV[1], ARGV[2]+1, ARGV[3]) "x"
-			}' "${1#s}" $2 $3)
-			Reply=${Reply%x}
-			;;
+		s*) # Use AWK. (Could do manually but that's a pain)
+			Reply=$(awk 'BEGIN{
+				print substr(ARGV[1], ARGV[2]+1, ARGV[3]) "x"
+			}' "${1#s}" $2 $Reply)
+			Reply=s${Reply%x} ;;
 		a*)
-			if [ $3 = 0 ] || [ $1 = a0 ]; then
+			if [ $Reply = 0 ] || [ "$1" = a0 ]; then
 				Reply=a0
 				return
 			fi
 
-			IFS=$ARY_SEP; set -- "$3" "$2" $1; unset IFS
+			IFS=$ARY_SEP; set -- "$Reply" "$2" $1; unset IFS
 			len=$1
-			shift $(($2 + 3)) # `+3` for len, start, & alen
+			shift $(($2 + 3)) # `+3` for len, start, and "a#"
 
 			Reply=a$len
 			while [ $((len -= 1)) -ge 0 ]; do
 				Reply=$Reply$ARY_SEP$1
 				shift
-			done
-			;;
+			done ;;
 		*)  die "unknown argument to $fn: %s" "$1"
 		esac ;;
 
@@ -311,7 +311,7 @@ run () {
 		to_int "$2"; set -- "$1" $Reply "$3" "$4"
 		to_int "$3"; set -- "$1" $2 $Reply "$4"
 		case $1 in
-		s*)
+		s*) # Again, no substr, gotta use awk.
 			to_str "$4"
 			Reply=s$(awk 'BEGIN{
 			print substr(ARGV[1], 1, ARGV[2]) \
@@ -323,39 +323,32 @@ run () {
 		a*)
 			to_ary "$4"
 
+			len=${Reply%%$ARY_SEP*} len=${len#a}
 			Reply=$Reply$ARY_SEP repl=${Reply#*$ARY_SEP}
-			ary=$1$ARY_SEP; ary=${ary#*$ARY_SEP}
+			tmp=${1%%$ARY_SEP*} tmp=${tmp#a}
+			Reply=a$((len + tmp))$ARY_SEP
+
+			ary=$1$ARY_SEP ary=${ary#*$ARY_SEP}
 			start=$2 len=$3
-			Reply=
 
 			# Get the starting portion
-			while [ $start -gt 0 ]; do
+			while [ $((start -= 1)) -ge 0 ]; do
 				tmp=${ary#*$ARY_SEP}
 				Reply=$Reply${ary%"$tmp"}
 				ary=$tmp
-				start=$((start - 1))
 			done
 
 			# Add replacement
 			Reply=$Reply$repl
 
 			# Delete unwanted elements
-			while [ $len -gt 0 ]; do
+			while [ $((len -= 1)) -ge 0 ]; do
 				ary=${ary#*$ARY_SEP}
-				len=$((len - 1))
 			done
 
-			Reply=$Reply$ary
-			Reply=${Reply%$ARY_SEP}
-			len=$(printf %s "$Reply" | tr -dc "$ARY_SEP" | \
-				wc -c)
-			Reply=a$((0 + len))$ARY_SEP$Reply
-			Reply=${Reply%$ARY_SEP}
-			;;
+			Reply=$Reply$ary Reply=${Reply%$ARY_SEP} ;;
 		*)  die "unknown argument to $fn: %s" "$1"
-		esac
-		;;
-
+		esac ;;
 	*) die 'unknown function: %s' "$1"
 	esac
 }

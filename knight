@@ -1,73 +1,106 @@
-#!/bin/dash
+#!/bin/ksh
+
+# This is Knight implemented in POSIX-compliant sh. Everything in this program
+# (and the files it includes) are 100%-POSIX compliant, and are guaranteed to
+# work on all POSIX-compliant shells. (Including KSH, assuming you have the
+# newest one installed---older ones have some bugs!)
 
 ################################################################################
+#                                                                              #
+#                                  Background                                  #
+#                                                                              #
+################################################################################
 
-## Naming scheme for vairables
-# READ_ONLY
-# Global_Variables
-# local_variable
+## Naming scheme for variables
+# As POSIX-compliant sh doesn't have local vars, I use the following scheme:
+#
+#   READ_ONLY        -- this variables are declared `readonly`
+#   Global_Variables -- these variables are intended to be read cross-function
+#   local_variable   -- only local to the current function.
+#
+# Most local variables can be assumed to be clobbered when calling functions.
+#
+# Of note is the variable `Reply` which stores the "return value" from functions
+# that need to return something.
+##
 
-## Here's how values are represented:
-# i-?\d+                 - integer
-# s.*                    - string
-# [TFN]                  - true/false/null
-# v[a-z_][a-z0-9_]       - variable
-# a(\d+)(${ARY_SEP}ele)* - array; \1 is len, \2+ elements. ele cant be an array
-# A(\d+)                 - array ref; `eval`ing it gives you the original array
-# f(.)(${FN_SEP}ele)*    - function; \1 is name, \2+ are arguments.
-# F(\d+)                 - fn ref, `eval`ing it will give you the original fn
+## Value representation
+# As POSIX-compliant sh only allows for string variables, this program uses the
+# very first character of a "value" to distinguish its type. Values are in the
+# following (regex) formats:
+#    i-?\d+                 - integers
+#    s.*                    - strings
+#    [TFN]                  - TRUE, FALSE, or NULL.
+#    v[a-z_][a-z0-9_]       - variable names.
+#    a(\d+)(${ARY_SEP}ele)* - arrays, \1 is the array length, and `\2`+ are the
+#                             elements. (elements don't contain `$ARY_SEP`.)
+#    A(\d+)                 - array reference. Because arrays cannot contain
+#                             `$ARY_SEP`, nested arrays use array references. To
+#                             get the original back, you `eval` the reference.
+#    f(.)(${FN_SEP}ele)*    - functions, \1 is the name, `\2`+ are arguments. (
+#                             arguments don't contain `$FN_SEP`)
+#    F(\d+)                 - function reference. Just like array references,
+#                             except for functions.
 ##
 
 ################################################################################
 #                                                                              #
-#                                   Setup                                      #
+#                           Ensure POSIX Compliance                            #
 #                                                                              #
 ################################################################################
 
-# If executed using bash, make sure it's posix compliant
-if [ -n "$BASH_VERSION" ]; then
-	export POSIXLY_CORRECT=1
-	set -o posix
-fi
+# Convey to external utilities and the shell we want POSIX-compliance
+export POSIXLY_CORRECT=1
 
-## Set options
-set -o nounset -o noglob
+# If we're using bash, make sure it's POSIX compliant as well.
+[ -n "$BASH_VERSION" ] && set -o posix
+
+################################################################################
+#                                                                              #
+#                                    Setup                                     #
+#                                                                              #
+################################################################################
+
+set -o nounset # undefined variables raise errors, not return empty strings
+set -o noglob  # disable globbing (useful in variable expansions)
 
 ## Separators to separate elements; these don't exist in the Knight encoding set
 # so they're safe to use. (I picked the ascii separators for fun, but it could
 # be anything that's not in Knight and not considered whitespace.)
-readonly FN_SEP="$(printf \\036)" # 036 is "Record separator"
-readonly ARY_SEP="$(printf \\037)" # 037 is "Unit separator"
+readonly FN_SEP="$(printf \\036)"   # 036 is "Record separator"
+readonly ARY_SEP="$(printf \\037)"  # 037 is "Unit separator"
 readonly EXEC_SEP="$(printf \\034)" # 034 is "File separator"
 
-## Ensure `a-z` & co when parsing are POSIX compliant. Without this, it's
+## Ensure `a-z`, `0-9`, etc when parsing are POSIX compliant. Without this, it's
 # actually entirely implementation defined what `a-z` means.
 readonly LC_COLLATE=POSIX
 
-## Used in error messages
+# Used in error messages
 readonly SCRIPT_NAME=${0##*/}
 
-## Required in a few places
+# Required in a few places
 readonly NEWLINE='
 '
 
-## Required by `PROMPT`
+# Required by `PROMPT`. (Printing the trialing `x` ensures the `\r` won't be
+# stripped, as it's not the last character before a `\n`.)
 CARRIAGE_RETURN="$(printf \\rx)"; CARRIAGE_RETURN="${CARRIAGE_RETURN%x}"
 readonly CARRIAGE_RETURN
-
-## Hack required in case the directory containing this file ends in a `\n` lol
-KNIGHT_DIR=$(dirname -- "$0" && printf x) || {
-	pritnf >&2 '%s: [FATAL] cannot get directory of this script\n' \
-		"$SCRIPT_NAME"
-	exit 3
-}
-readonly KNIGHT_DIR="${KNIGHT_DIR%?x}"
 
 ################################################################################
 #                                                                              #
 #                            Import Knight Files                               #
 #                                                                              #
 ################################################################################
+
+# Get the directory containing this file. (This is a janky hack required in case
+# the folder enclosing this file for some reason ends in a newline)
+KNIGHT_DIR=$(dirname -- "$0" && printf x) || {
+	pritnf >&2 '%s: [FATAL] cannot get directory of this script\n' \
+		"$SCRIPT_NAME"
+	exit 3
+}
+KNIGHT_DIR="${KNIGHT_DIR%?x}"
 
 . "$KNIGHT_DIR/arrays.sh"
 . "$KNIGHT_DIR/conversions.sh"
@@ -81,19 +114,25 @@ readonly KNIGHT_DIR="${KNIGHT_DIR%?x}"
 #                                                                              #
 ################################################################################
 
-usage () { cat >&$(($1 + 1)); exit $1; } <<EOS
-usage: $(basename "$0") [-h] (-e 'script' | -f filename)
+# Print out the usage
+usage () { cat; } <<EOS
+usage: $SCRIPT_NAME [-h] (-e 'script' | -f filename)
 EOS
 
-[ "$1" = -h ] && usage 0
-[ $# -ne 2 ] && usage 1
+# Print usage if `-h` given
+[ $# = 1 ] && [ "$1" = -h ] && { usage; exit; }
 
+# If not exactly two arguments are given, error
+[ $# -ne 2 ] && { usage >&2; exit 1; }
+
+# Handle `-e` or `-f`.
 case $1 in
 	-e) next_expr <<-EOS ;;
 $2
 	EOS
 	-f) next_expr <"$2" ;; # Quoted b/c old bash versions don't like it.
-	*)  usage 1
+	*)  usage >&2; exit 1;
 esac
 
+# Run the result of `next_expr` in the case statement
 run "$Reply"
