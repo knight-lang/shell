@@ -96,7 +96,7 @@ readonly CARRIAGE_RETURN
 # Get the directory containing this file. (This is a janky hack required in case
 # the folder enclosing this file for some reason ends in a newline)
 KNIGHT_DIR=$(dirname -- "$0" && printf x) || {
-	pritnf >&2 '%s: [FATAL] cannot get directory of this script\n' \
+	printf >&2 '%s: [FATAL] cannot get directory of this script\n' \
 		"$SCRIPT_NAME"
 	exit 3
 }
