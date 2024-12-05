@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/sh
 
 # This is Knight implemented in POSIX-compliant sh. Everything in this program
 # (and the files it includes) are 100%-POSIX compliant, and are guaranteed to
