@@ -349,6 +349,6 @@ run () {
 			Reply=$Reply$ary Reply=${Reply%$ARY_SEP} ;;
 		*)  die "unknown argument to $fn: %s" "$1"
 		esac ;;
-	*) die 'unknown function: %s' "$1"
+	*) die 'unknown function: %s' "$fn"
 	esac
 }

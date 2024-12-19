@@ -55,6 +55,9 @@ export POSIXLY_CORRECT=1
 # If we're using bash, make sure it's POSIX compliant as well.
 [ -n "$BASH_VERSION" ] && set -o posix
 
+# Ditto, for zsh
+[ -n "$ZSH_VERSION" ] && emulate sh
+
 ################################################################################
 #                                                                              #
 #                                    Setup                                     #
