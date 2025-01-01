@@ -73,12 +73,8 @@ run () {
 			return
 		fi
 
-		# Delete trailing `\r`s.
-		while [ "${Reply%$CARRIAGE_RETURN}" != "$Reply" ]; do
-			Reply=${Reply%?}
-		done
-
-		Reply=s$Reply ;;
+		# Delete single trailing `\r`.
+		Reply=s${Reply%$CARRIAGE_RETURN} ;;
 
 	R) # RANDOM
 		# Posix shells don't have random themselves, so we have
