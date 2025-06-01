@@ -14,7 +14,7 @@
 ## Naming scheme for variables
 # As POSIX-compliant sh doesn't have local vars, I use the following scheme:
 #
-#   READ_ONLY        -- this variables are declared `readonly`
+#   READ_ONLY        -- these variables are declared `readonly`
 #   Global_Variables -- these variables are intended to be read cross-function
 #   local_variable   -- only local to the current function.
 #
@@ -32,13 +32,13 @@
 #    s.*                    - strings
 #    [TFN]                  - TRUE, FALSE, or NULL.
 #    v[a-z_][a-z0-9_]       - variable names.
-#    a(\d+)(${ARY_SEP}ele)* - arrays, \1 is the array length, and `\2`+ are the
-#                             elements. (elements don't contain `$ARY_SEP`.)
+#    a(\d+)(${ARY_SEP}ele)* - arrays, `\1`` is the array length, and `\2`+ are
+#                             the elements. (elements don't contain `$ARY_SEP`.)
 #    A(\d+)                 - array reference. Because arrays cannot contain
 #                             `$ARY_SEP`, nested arrays use array references. To
 #                             get the original back, you `eval` the reference.
-#    f(.)(${FN_SEP}ele)*    - functions, \1 is the name, `\2`+ are arguments. (
-#                             arguments don't contain `$FN_SEP`)
+#    f(.)(${FN_SEP}ele)*    - functions, `\1`` is the name, `\2`+ are arguments.
+#                             (arguments don't contain `$FN_SEP`)
 #    F(\d+)                 - function reference. Just like array references,
 #                             except for functions.
 ##
@@ -81,14 +81,14 @@ readonly LC_COLLATE=POSIX
 # Used in error messages
 readonly SCRIPT_NAME=${0##*/}
 
-# Required in a few places
-readonly NEWLINE='
-'
-
-# Required by `PROMPT`. (Printing the trialing `x` ensures the `\r` won't be
+# Required in a few place. (Printing the trialing `x` ensures the `\r` won't be
 # stripped, as it's not the last character before a `\n`.)
-CARRIAGE_RETURN="$(printf \\rx)"; CARRIAGE_RETURN="${CARRIAGE_RETURN%x}"
-readonly CARRIAGE_RETURN
+NEWLINE=$(printf \\nx)
+readonly NEWLINE=${NEWLINE%x}
+
+# Required by `PROMPT`.
+CARRIAGE_RETURN=$(printf \\rx)
+readonly CARRIAGE_RETURN=${CARRIAGE_RETURN%x}
 
 ################################################################################
 #                                                                              #
@@ -98,12 +98,12 @@ readonly CARRIAGE_RETURN
 
 # Get the directory containing this file. (This is a janky hack required in case
 # the folder enclosing this file for some reason ends in a newline)
-KNIGHT_DIR=$(dirname -- "$0" && printf x) || {
+if ! KNIGHT_DIR=$(dirname -- "$0" && printf x); then
 	printf >&2 '%s: [FATAL] cannot get directory of this script\n' \
 		"$SCRIPT_NAME"
 	exit 3
-}
-KNIGHT_DIR="${KNIGHT_DIR%?x}"
+fi
+readonly KNIGHT_DIR=${KNIGHT_DIR%?x}
 
 . "$KNIGHT_DIR/arrays.sh"
 . "$KNIGHT_DIR/conversions.sh"
@@ -123,16 +123,23 @@ usage: $SCRIPT_NAME [-h] (-e 'script' | -f filename)
 EOS
 
 # Print usage if `-h` given
-[ $# = 1 ] && [ "$1" = -h ] && { usage; exit; }
+if [ $# = 1 ] && [ "$1" = -h ]; then
+	usage
+	exit
+fi
 
 # If not exactly two arguments are given, error
-[ $# -ne 2 ] && { usage >&2; exit 1; }
+if [ $# -ne 2 ]; then
+	usage >&2
+	exit 1
+fi
 
 # Handle `-e` or `-f`.
 case $1 in
-	-e) next_expr <<-EOS ;;
+	-e) next_expr <<EOS
 $2
-	EOS
+EOS
+	;;
 	-f) next_expr <"$2" ;; # Quoted b/c old bash versions don't like it.
 	*)  usage >&2; exit 1;
 esac
