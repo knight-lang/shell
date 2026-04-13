@@ -52,7 +52,7 @@ run () {
 
 	\$) # $ (system)
 		to_str "$1"
-		Reply=s$( $Reply ) ;;
+		eval "Reply=s\$( $Reply )" ;;
 
 	V) # VALUE
 		to_str "$1"
