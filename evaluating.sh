@@ -80,11 +80,11 @@ run () {
 		# Posix shells don't have random themselves, so we have
 		# to dip into AWK.
 		Reply=i$(awk "BEGIN {
-			${seed+srand($seed)} # Seed the random number
+			${Seed+srand($Seed)} # Seed the random number
 			print int(rand() * 4294967295) # AWK uses floats
 			exit
 		}")
-		seed=${Reply#i} ;; # Reset the seed so the next awk works.
+		Seed=${Reply#i} ;; # Reset the seed so the next awk works.
 
     ########################################################################
     #                                                                      #
